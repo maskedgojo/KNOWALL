@@ -1,0 +1,9 @@
+'use client';
+import {useState} from 'react';
+import {adminApi,arrayAt,str,asRecord} from '@/lib/endpoints';
+import {pager} from './helpers';
+import {pretty,shortDate} from '@/lib/format';
+import {Button,Card,EmptyState,ErrorState,Loading,PageHeading} from '@/components/ui';
+import {useLoad} from '@/lib/use-load';
+export default function AdminAudit(){const [offset,setOffset]=useState(0);const load=useLoad(()=>adminApi.audit(offset),[offset]);const response=asRecord(load.value);const logs=arrayAt(response,'audit_logs').length?arrayAt(response,'audit_logs'):arrayAt(response,'logs');const page=pager(load.value);return <><PageHeading eyebrow="ADMINISTRATION / ACCOUNTABILITY" title="Audit trail" description="Server-recorded administrative actions. Private document contents are never displayed here."/>
+ <Card>{load.loading?<Loading/>:load.error?<ErrorState error={load.error} onRetry={load.refresh}/>:logs.length?<div className="table-wrap"><table className="table"><thead><tr><th>Activity</th><th>Actor</th><th>Target</th><th>When</th></tr></thead><tbody>{logs.map((x,i)=><tr key={str(x.id)||i}><td><strong>{pretty(str(x.action)||str(x.event_type))}</strong></td><td>{str(x.actor_id)||str(x.actor_user_id)||'—'}</td><td>{str(x.target_id)||str(x.entity_id)||'—'}</td><td>{shortDate(str(x.created_at))}</td></tr>)}</tbody></table></div>:<EmptyState title="No audit entries returned" description="Only records supplied by the Flask audit endpoint appear here."/>}<div className="form-actions"><Button variant="secondary" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-15))}>Previous</Button><span className="small muted">Offset {offset}</span><Button variant="secondary" disabled={page.total!==null?offset+15>=page.total:logs.length<15} onClick={()=>setOffset(offset+15)}>Next</Button></div></Card></>}

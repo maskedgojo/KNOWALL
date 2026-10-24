@@ -1,0 +1,12 @@
+Flask>=3.1,<4
+Flask-SQLAlchemy>=3.1,<4
+Flask-Migrate>=4,<5
+SQLAlchemy>=2.0,<3
+psycopg[binary]>=3.2,<4
+python-dotenv>=1,<2
+pytest>=8,<10
+Flask-Login>=0.6.3,<1
+# Install in the already-working Flask environment, not necessarily in a new venv.
+pymupdf>=1.25,<2
+Pillow==10.4.0
+# If not already installed, use: python -m pip install "surya-ocr==0.22.1"

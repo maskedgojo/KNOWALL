@@ -1,0 +1,3869 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "KNOWALL \u2014 Module 1 API",
+    "version": "1.1.0-family-auto-activation",
+    "description": "Single-society demo backend. All state-changing /api operations require an X-CSRF-Token from GET /api/auth/csrf. The session cookie is HttpOnly and stored by the browser. Use GET /api/auth/csrf before login and again after login (login rotates the CSRF token). Swagger UI cannot set browser authentication cookies manually: execute login in the same Swagger origin, then try protected endpoints. Demo console email links are development-only. Phase 6 adds draft/submission and invitation APIs. Pending applications DO NOT confer resident rights. Phase 7 adds private document upload and on-demand OCR; Phase 8 adds human administrator approvals, correction/rejection workflows, memberships and audit history. Enhancement: optional personal details, sponsored-family relationship, household family tree and administrator-confirmed current occupancy. No voting system is added. Family administrator review enhancement: explicit, live sponsor_context and advisory OCR-to-sponsor name comparison. No automatic family relationship validation or eligibility based on occupancy."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Flask on same origin (usually localhost:5000)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Recovery"
+    },
+    {
+      "name": "Residential Directory"
+    },
+    {
+      "name": "My Profile & Memberships"
+    },
+    {
+      "name": "Resident Applications"
+    },
+    {
+      "name": "Resident Invitations"
+    },
+    {
+      "name": "Documents & OCR",
+      "description": "Private residence evidence; Surya OCR assists and never auto-approves."
+    },
+    {
+      "name": "Admin \u2014 Resident Verification",
+      "description": "Admin role required. OCR supports, but never replaces, manual verification."
+    },
+    {
+      "name": "Admin \u2014 Memberships",
+      "description": "Society admin membership lifecycle and audit history."
+    },
+    {
+      "name": "Member Evidence Requests",
+      "description": "Exceptional admin-initiated, auditable evidence collection for active members. No automatic status changes."
+    },
+    {
+      "name": "Admin \u2014 Households",
+      "description": "Household-scoped directory with limited personal information."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "knowall_session",
+        "description": "Set automatically by Flask login; browser manages it."
+      },
+      "CsrfHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-CSRF-Token",
+        "description": "Fetch GET /api/auth/csrf; paste token into Authorize for write APIs. Refresh after login."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "account_status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "DISABLED"
+            ]
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "description": "Private; only visible to the authenticated account owner through auth/me and profile."
+          },
+          "occupation": {
+            "type": "string",
+            "maxLength": 100,
+            "nullable": true,
+            "description": "Private; not returned to other household members."
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "email",
+          "phone",
+          "email_verified",
+          "account_status",
+          "date_of_birth",
+          "occupation"
+        ]
+      },
+      "Flat": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tower_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tower_name": {
+            "type": "string"
+          },
+          "flat_number": {
+            "type": "string"
+          },
+          "floor_number": {
+            "type": "integer"
+          }
+        }
+      },
+      "Membership": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "household_label": {
+            "type": "string"
+          },
+          "flat": {
+            "$ref": "#/components/schemas/Flat"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "TENANT",
+              "FAMILY_MEMBER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "EXPIRED",
+              "REVOKED"
+            ]
+          },
+          "access_state": {
+            "type": "string"
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "sponsor_membership_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "relationship_to_sponsor": {
+            "type": "string",
+            "enum": [
+              "CHILD",
+              "GRANDCHILD",
+              "GRANDPARENT",
+              "OTHER",
+              "PARENT",
+              "SIBLING",
+              "SPOUSE"
+            ],
+            "nullable": true,
+            "description": "Relationship to a sponsor; null means not supplied/unknown (legacy data)."
+          },
+          "is_current_occupant": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Administrator-confirmed occupancy, not implied by an owner/tenant category; null means unknown."
+          },
+          "occupancy_confirmed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "declared_current_occupant": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Invitee self-declaration, never equivalent to admin confirmed is_current_occupant."
+          }
+        }
+      },
+      "Application": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "flat": {
+            "$ref": "#/components/schemas/Flat"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "TENANT",
+              "FAMILY_MEMBER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PENDING",
+              "IN_REVIEW",
+              "NEEDS_CORRECTION",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "sponsor_membership_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "resulting_membership_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "applicant_notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "requested_valid_from": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "requested_valid_until": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "evidence_required": {
+            "type": "boolean"
+          },
+          "documents_uploaded": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "relationship_to_sponsor": {
+            "type": "string",
+            "enum": [
+              "CHILD",
+              "GRANDCHILD",
+              "GRANDPARENT",
+              "OTHER",
+              "PARENT",
+              "SIBLING",
+              "SPOUSE"
+            ],
+            "nullable": true,
+            "description": "Relationship to a sponsor; null means not supplied/unknown (legacy data)."
+          },
+          "declared_current_occupant": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Applicant self-declaration only. Not an admin-confirmed occupancy determination."
+          }
+        }
+      },
+      "CreateApplication": {
+        "type": "object",
+        "required": [
+          "flat_id",
+          "category"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "flat_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "TENANT"
+            ],
+            "description": "Family members use /api/invitations/accept."
+          },
+          "applicant_notes": {
+            "type": "string",
+            "maxLength": 1200,
+            "nullable": true
+          },
+          "requested_valid_from": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "requested_valid_until": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "declared_current_occupant": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Applicant self-declaration only. Not an admin-confirmed occupancy determination."
+          }
+        }
+      },
+      "EditApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "flat_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "TENANT"
+            ],
+            "description": "Family members use /api/invitations/accept."
+          },
+          "applicant_notes": {
+            "type": "string",
+            "maxLength": 1200,
+            "nullable": true
+          },
+          "requested_valid_from": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "requested_valid_until": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "declared_current_occupant": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Applicant self-declaration only. Not an admin-confirmed occupancy determination."
+          },
+          "relationship_to_sponsor": {
+            "type": "string",
+            "enum": [
+              "CHILD",
+              "GRANDCHILD",
+              "GRANDPARENT",
+              "OTHER",
+              "PARENT",
+              "SIBLING",
+              "SPOUSE"
+            ],
+            "nullable": true,
+            "description": "Relationship to a sponsor; null means not supplied/unknown (legacy data)."
+          }
+        }
+      },
+      "CreateInvitation": {
+        "type": "object",
+        "required": [
+          "flat_id",
+          "category",
+          "email"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "flat_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "TENANT",
+              "FAMILY_MEMBER"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "sponsor_membership_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Required for family invitations; sponsor must be eligible."
+          },
+          "relationship_to_sponsor": {
+            "type": "string",
+            "enum": [
+              "CHILD",
+              "GRANDCHILD",
+              "GRANDPARENT",
+              "OTHER",
+              "PARENT",
+              "SIBLING",
+              "SPOUSE"
+            ],
+            "nullable": true,
+            "description": "Relationship to a sponsor; null means not supplied/unknown (legacy data)."
+          }
+        }
+      },
+      "AcceptInvitation": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "relationship_to_sponsor": {
+            "type": "string",
+            "enum": [
+              "CHILD",
+              "GRANDCHILD",
+              "GRANDPARENT",
+              "OTHER",
+              "PARENT",
+              "SIBLING",
+              "SPOUSE"
+            ],
+            "nullable": true,
+            "description": "Required for FAMILY_MEMBER unless already declared on invitation; ignored for OWNER/TENANT (must not supply)."
+          },
+          "declared_current_occupant": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Applicant self-declaration only. Not an admin-confirmed occupancy determination."
+          }
+        }
+      },
+      "AdminSponsorContext": {
+        "type": "object",
+        "description": "Current sponsor membership linked explicitly by the family application. No personal contact or private profile data. eligibility is live and advisory; reassessed under database lock when approving.",
+        "required": [
+          "membership_id",
+          "display_name",
+          "category",
+          "membership_status",
+          "household_id",
+          "household_label",
+          "flat_id",
+          "eligible_to_sponsor",
+          "valid_from",
+          "valid_until"
+        ],
+        "properties": {
+          "membership_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "TENANT",
+              "FAMILY_MEMBER"
+            ]
+          },
+          "membership_status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "EXPIRED",
+              "REVOKED"
+            ]
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "household_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "flat_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "eligible_to_sponsor": {
+            "type": "boolean",
+            "description": "True only if account, role, membership validity, household binding and flat binding all pass current shared eligibility checks. Not an occupancy flag."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        }
+      },
+      "SponsorOCRNameAdvisory": {
+        "type": "object",
+        "description": "Advisory, non-persistent, strictly normalized name comparison against explicitly linked sponsor. Does not replace OCR-to-applicant comparison, prove relationship, or approve the application.",
+        "required": [
+          "status",
+          "advisory_only",
+          "basis",
+          "extracted_name"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "MATCHES_SPONSOR_NAME",
+              "DOES_NOT_MATCH_SPONSOR_NAME",
+              "NAME_NOT_AVAILABLE"
+            ]
+          },
+          "advisory_only": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "linked_sponsor_display_name"
+            ]
+          },
+          "extracted_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "FamilyInvitationAcceptance": {
+        "type": "object",
+        "required": [
+          "outcome",
+          "application",
+          "membership",
+          "access"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "FAMILY_MEMBERSHIP_ACTIVATED"
+            ]
+          },
+          "application": {
+            "nullable": true,
+            "description": "Always null for a new family auto-activation."
+          },
+          "membership": {
+            "$ref": "#/components/schemas/Membership"
+          },
+          "access": {
+            "type": "object",
+            "properties": {
+              "verified_resident": {
+                "type": "boolean"
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "OwnerTenantInvitationAcceptance": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "APPLICATION_DRAFT_CREATED"
+            ]
+          },
+          "application": {
+            "$ref": "#/components/schemas/Application"
+          },
+          "membership": {
+            "nullable": true,
+            "description": "Always null; Owner/Tenant require normal admin approval."
+          }
+        }
+      },
+      "MemberEvidenceRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "membership_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "evidence_needed": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "SUBMITTED",
+              "ACCEPTED",
+              "REJECTED",
+              "CANCELLED"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "review_note": {
+            "type": "string",
+            "nullable": true
+          },
+          "document": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "filename": {
+                "type": "string"
+              },
+              "mime_type": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer"
+              },
+              "download_url": {
+                "type": "string"
+              }
+            }
+          },
+          "retention_delete_after": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "HouseholdDirectoryEntry": {
+        "type": "object",
+        "properties": {
+          "household_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "household_label": {
+            "type": "string"
+          },
+          "flat": {
+            "$ref": "#/components/schemas/Flat"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "membership_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "display_name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "OWNER",
+                    "TENANT",
+                    "FAMILY_MEMBER"
+                  ]
+                },
+                "membership_status": {
+                  "type": "string"
+                },
+                "access_state": {
+                  "type": "string"
+                },
+                "relationship_to_sponsor": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "sponsor_membership_id": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "sponsor_display_name": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "is_current_occupant": {
+                  "type": "boolean",
+                  "nullable": true
+                },
+                "valid_from": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "valid_until": {
+                  "type": "string",
+                  "format": "date",
+                  "nullable": true
+                },
+                "declared_current_occupant": {
+                  "type": "boolean",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/csrf": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Get or refresh CSRF token",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "csrf_token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Register applicant account",
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "display_name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "display_name",
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login and rotate CSRF token",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "csrf_token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "View current account",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "End session",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "csrf_token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/auth/verification/resend": {
+      "post": {
+        "tags": [
+          "Recovery"
+        ],
+        "summary": "Resend email verification",
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/auth/password/forgot": {
+      "post": {
+        "tags": [
+          "Recovery"
+        ],
+        "summary": "Request password reset",
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/auth/verify-email": {
+      "post": {
+        "tags": [
+          "Recovery"
+        ],
+        "summary": "Confirm email verification token",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/auth/password/reset": {
+      "post": {
+        "tags": [
+          "Recovery"
+        ],
+        "summary": "Set new password and revoke prior sessions",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "csrf_token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                },
+                "required": [
+                  "token",
+                  "new_password"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/residential/society": {
+      "get": {
+        "tags": [
+          "Residential Directory"
+        ],
+        "summary": "Public single-society profile",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "society": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        },
+                        "locality": {
+                          "type": "string"
+                        },
+                        "city": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/residential/towers": {
+      "get": {
+        "tags": [
+          "Residential Directory"
+        ],
+        "summary": "List Green Valley towers",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "towers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/residential/towers/{tower_id}/flats": {
+      "get": {
+        "tags": [
+          "Residential Directory"
+        ],
+        "summary": "List flats in a tower; optional floor filter",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flats": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Flat"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "tower_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "floor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/residential/flats/{flat_id}": {
+      "get": {
+        "tags": [
+          "Residential Directory"
+        ],
+        "summary": "Public flat reference details (no occupants)",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flat": {
+                      "$ref": "#/components/schemas/Flat"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "flat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/me/profile": {
+      "get": {
+        "tags": [
+          "My Profile & Memberships"
+        ],
+        "summary": "Get current user profile",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "My Profile & Memberships"
+        ],
+        "summary": "Update personal profile (name, phone, optional birth date and occupation)",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "display_name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "date_of_birth": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true,
+                    "example": "1991-08-16"
+                  },
+                  "occupation": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 100,
+                    "example": "Software engineer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/me/memberships": {
+      "get": {
+        "tags": [
+          "My Profile & Memberships"
+        ],
+        "summary": "List current user membership history",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "memberships": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Membership"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/me/access": {
+      "get": {
+        "tags": [
+          "My Profile & Memberships"
+        ],
+        "summary": "View current account roles and eligible memberships (not final RBAC)",
+        "responses": {
+          "200": {
+            "description": "Live roles, eligible memberships and scoped capability hints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email_verified": {
+                      "type": "boolean"
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "verified_resident": {
+                      "type": "boolean"
+                    },
+                    "active_memberships": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Membership"
+                      }
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Current, effective permission codes (do not use for server authorization)."
+                    }
+                  },
+                  "required": [
+                    "permissions"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "description": "Returns current user roles, verified active memberships and effective permission codes. Permissions are display hints to the frontend, never authority for a Flask endpoint. Owner/tenant/family is a membership category rather than a permission role. Access can change immediately after suspension, expiry, sponsor ineligibility or revocation. Future-module permission names indicate shared capability contracts only; each module must also enforce resource-specific eligibility."
+      }
+    },
+    "/api/me/households": {
+      "get": {
+        "tags": [
+          "My Profile & Memberships"
+        ],
+        "summary": "View eligible household members and explicit sponsor relationships",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "households": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "flat": {
+                            "$ref": "#/components/schemas/Flat"
+                          },
+                          "members": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "user_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "display_name": {
+                                  "type": "string"
+                                },
+                                "category": {
+                                  "type": "string"
+                                },
+                                "membership_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "sponsor_membership_id": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "nullable": true
+                                },
+                                "relationship_to_sponsor": {
+                                  "type": "string",
+                                  "enum": [
+                                    "CHILD",
+                                    "GRANDCHILD",
+                                    "GRANDPARENT",
+                                    "OTHER",
+                                    "PARENT",
+                                    "SIBLING",
+                                    "SPOUSE"
+                                  ],
+                                  "nullable": true,
+                                  "description": "Relationship to a sponsor; null means not supplied/unknown (legacy data)."
+                                },
+                                "is_current_occupant": {
+                                  "type": "boolean",
+                                  "nullable": true,
+                                  "description": "Administrator-confirmed occupancy, not implied by an owner/tenant category; null means unknown."
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/membership/applications": {
+      "post": {
+        "tags": [
+          "Resident Applications"
+        ],
+        "summary": "Create a self-registration draft",
+        "description": "Owner/tenant only. Family members must accept a sponsor invitation. Creates a draft, not a verified membership.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "$ref": "#/components/schemas/Application"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate application"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApplication"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/membership/applications/me": {
+      "get": {
+        "tags": [
+          "Resident Applications"
+        ],
+        "summary": "List my applications",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Applications belonging to signed-in user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applications": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Application"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate application"
+          }
+        }
+      }
+    },
+    "/api/membership/applications/{application_id}": {
+      "get": {
+        "tags": [
+          "Resident Applications"
+        ],
+        "summary": "Get my application detail",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "$ref": "#/components/schemas/Application"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate application"
+          }
+        },
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Resident Applications"
+        ],
+        "summary": "Edit draft or correction-requested application",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "$ref": "#/components/schemas/Application"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate application"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditApplication"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/membership/applications/{application_id}/submit": {
+      "post": {
+        "tags": [
+          "Resident Applications"
+        ],
+        "summary": "Submit or resubmit for administrator review",
+        "description": "Email verification required; sponsor must still be eligible for family applications. Approval and document validation are later phases. Send an empty JSON object {}.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "$ref": "#/components/schemas/Application"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate application"
+          }
+        },
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/invitations": {
+      "post": {
+        "tags": [
+          "Resident Invitations"
+        ],
+        "summary": "Invite a resident with a single-use token",
+        "description": "Admin may invite owner/tenant; only an eligible sponsor (or admin with eligible sponsor) may invite family. Token expires in 7 days.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Invitation email queued/sent by configured delivery mode. Secret token is emailed, never returned in JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invitation": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "flat_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "category": {
+                          "type": "string"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate application"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invitations/me": {
+      "get": {
+        "tags": [
+          "Resident Invitations"
+        ],
+        "summary": "List invitations addressed to my verified email",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "My invitations, excluding raw tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invitations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Conflicting state or duplicate application"
+          }
+        }
+      }
+    },
+    "/api/invitations/accept": {
+      "post": {
+        "tags": [
+          "Resident Invitations"
+        ],
+        "summary": "Accept single-use invitation; family activates immediately, owner/tenant create draft",
+        "description": "New FAMILY_MEMBER invitation acceptance requires an eligible live Owner/Tenant sponsor, matching verified email, correct household/flat, and declared relationship; atomically activates ACTIVE membership and resident role without a family application, OCR, or administrator review. Owner/Tenant invitations continue to create DRAFT applications. Legacy family applications remain unchanged. 200 is not returned for success: two possible 201 contracts distinguished by outcome.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "FAMILY_MEMBERSHIP_ACTIVATED or APPLICATION_DRAFT_CREATED (see oneOf)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FamilyInvitationAcceptance"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OwnerTenantInvitationAcceptance"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation/invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required"
+          },
+          "403": {
+            "description": "Forbidden, unverified or missing CSRF"
+          },
+          "409": {
+            "description": "Sponsor ineligible, duplicate family membership, open legacy application, or invitation already claimed"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/documents/upload": {
+      "post": {
+        "tags": [
+          "Documents & OCR"
+        ],
+        "summary": "Upload private residence evidence for own application",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "application_id",
+                  "document_type",
+                  "file"
+                ],
+                "properties": {
+                  "application_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "enum": [
+                      "RENTAL_AGREEMENT",
+                      "OCCUPANCY_LETTER",
+                      "OTHER_RESIDENCE_EVIDENCE"
+                    ]
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "PDF/JPG/PNG, <=5 MB, PDF <=3 pages"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Private document stored"
+          },
+          "400": {
+            "description": "Invalid file or application"
+          },
+          "401": {
+            "description": "Login required"
+          },
+          "403": {
+            "description": "Email verification / CSRF required"
+          },
+          "409": {
+            "description": "Application closed"
+          }
+        }
+      }
+    },
+    "/api/documents/application/{application_id}": {
+      "get": {
+        "tags": [
+          "Documents & OCR"
+        ],
+        "summary": "List uploaded documents for application (owner/admin)",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document metadata list"
+          },
+          "404": {
+            "description": "Application missing or inaccessible"
+          }
+        }
+      }
+    },
+    "/api/documents/{document_id}": {
+      "get": {
+        "tags": [
+          "Documents & OCR"
+        ],
+        "summary": "Read private document metadata",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document metadata"
+          },
+          "404": {
+            "description": "Not found or not authorized"
+          }
+        }
+      }
+    },
+    "/api/documents/{document_id}/file": {
+      "get": {
+        "tags": [
+          "Documents & OCR"
+        ],
+        "summary": "Download original private evidence as attachment",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Binary document attachment"
+          },
+          "404": {
+            "description": "Not found or inaccessible"
+          }
+        }
+      }
+    },
+    "/api/documents/{document_id}/ocr": {
+      "post": {
+        "tags": [
+          "Documents & OCR"
+        ],
+        "summary": "Run Surya OCR on demand; may be slow on CPU",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OCR text and comparisons; warnings are not approval decisions"
+          },
+          "409": {
+            "description": "OCR already processing or application closed"
+          },
+          "503": {
+            "description": "OCR unavailable; manual review is still possible"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Documents & OCR"
+        ],
+        "summary": "View OCR run history for document",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OCR results"
+          },
+          "404": {
+            "description": "Not found or inaccessible"
+          }
+        }
+      }
+    },
+    "/api/admin/applications": {
+      "get": {
+        "tags": [
+          "Admin \u2014 Resident Verification"
+        ],
+        "summary": "Paged application verification queue",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PENDING",
+                "IN_REVIEW",
+                "NEEDS_CORRECTION",
+                "APPROVED",
+                "REJECTED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged applications with applicant and flat details"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Admin role required"
+          }
+        }
+      }
+    },
+    "/api/admin/applications/{application_id}": {
+      "get": {
+        "tags": [
+          "Admin \u2014 Resident Verification"
+        ],
+        "summary": "View application, documents, OCR warnings, review history, and linked family sponsor context",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Administrator application detail. sponsor_context included only for FAMILY_MEMBER.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "application"
+                  ],
+                  "properties": {
+                    "application": {
+                      "type": "object",
+                      "description": "Unchanged existing application detail, including applicant, documents with latest_ocr, and reviews. See existing GET response shape."
+                    },
+                    "sponsor_context": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/AdminSponsorContext"
+                        }
+                      ],
+                      "nullable": true,
+                      "description": "Family applications only. Explicit linked sponsor, or null if missing. Never guessed by flat."
+                    }
+                  }
+                },
+                "examples": {
+                  "family": {
+                    "summary": "Sponsored family application",
+                    "value": {
+                      "application": {
+                        "id": "11111111-1111-4111-8111-111111111111",
+                        "category": "FAMILY_MEMBER",
+                        "sponsor_membership_id": "22222222-2222-4222-8222-222222222222",
+                        "household_id": "33333333-3333-4333-8333-333333333333",
+                        "flat": {
+                          "id": "44444444-4444-4444-8444-444444444444",
+                          "tower_name": "B",
+                          "flat_number": "402"
+                        },
+                        "relationship_to_sponsor": "SPOUSE",
+                        "documents": [],
+                        "reviews": []
+                      },
+                      "sponsor_context": {
+                        "membership_id": "22222222-2222-4222-8222-222222222222",
+                        "display_name": "Rahul Sharma",
+                        "category": "OWNER",
+                        "membership_status": "ACTIVE",
+                        "household_id": "33333333-3333-4333-8333-333333333333",
+                        "household_label": "Owner household",
+                        "flat_id": "44444444-4444-4444-8444-444444444444",
+                        "eligible_to_sponsor": true,
+                        "valid_from": "2026-01-01",
+                        "valid_until": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin role required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "description": "For FAMILY_MEMBER applications, adds a sibling sponsor_context field resolved exclusively from application.sponsor_membership_id; null when missing. Fields within application remain unchanged. Existing application.documents[*].latest_ocr.comparisons.resident_name stays applicant-based; family responses may include a separate advisory sponsor_name_advisory in latest_ocr. Only authorized admins may read this route. The sponsor eligibility flag is live at GET time and rechecked with a row lock during approval."
+      }
+    },
+    "/api/admin/applications/{application_id}/decision": {
+      "post": {
+        "tags": [
+          "Admin \u2014 Resident Verification"
+        ],
+        "summary": "Human reviewer approves, rejects or requests corrections",
+        "description": "Approval copies applicant family relationship into resulting membership; declared occupancy remains unverified until administrator explicitly confirms it in /api/admin/memberships/{membership_id}/occupancy.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "APPROVED",
+                      "REJECTED",
+                      "NEEDS_CORRECTION"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 1200
+                  },
+                  "document_reviewed": {
+                    "type": "boolean"
+                  },
+                  "acknowledge_ocr_warnings": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "decision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated application, review and membership if approved"
+          },
+          "400": {
+            "description": "Invalid decision or missing reason"
+          },
+          "403": {
+            "description": "Admin access required or self-review forbidden"
+          },
+          "409": {
+            "description": "Invalid application state, required evidence, OCR warnings, sponsor ineligible, or conflict"
+          }
+        }
+      }
+    },
+    "/api/admin/memberships": {
+      "get": {
+        "tags": [
+          "Admin \u2014 Memberships"
+        ],
+        "summary": "List memberships and computed access states",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "SUSPENDED",
+                "EXPIRED",
+                "REVOKED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged membership records"
+          },
+          "403": {
+            "description": "Administrator only"
+          }
+        }
+      }
+    },
+    "/api/admin/memberships/{membership_id}/status": {
+      "patch": {
+        "tags": [
+          "Admin \u2014 Memberships"
+        ],
+        "summary": "Suspend, revoke or reinstate a membership",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "membership_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "SUSPENDED",
+                      "REVOKED",
+                      "ACTIVE"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 1200
+                  }
+                },
+                "required": [
+                  "status",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated membership and effective access"
+          },
+          "403": {
+            "description": "Administrator only"
+          },
+          "409": {
+            "description": "Invalid lifecycle transition, expired membership or ineligible sponsor"
+          }
+        }
+      }
+    },
+    "/api/admin/audit-logs": {
+      "get": {
+        "tags": [
+          "Admin \u2014 Memberships"
+        ],
+        "summary": "Admin audit trail without private document content",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged audit entries"
+          },
+          "403": {
+            "description": "Administrator only"
+          }
+        }
+      }
+    },
+    "/api/me/family-tree": {
+      "get": {
+        "tags": [
+          "My Profile & Memberships"
+        ],
+        "summary": "Household-scoped sponsor and family relationships",
+        "description": "Requires current verified resident access. Never includes personal contact information, date of birth, occupation or other households. Not a genealogical family tree.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Filtered household relation graph",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Only currently eligible memberships from household(s) the signed-in resident belongs to. The graph represents direct sponsor relationships, not inferred biological genealogy.",
+                  "properties": {
+                    "households": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "household_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "household_label": {
+                            "type": "string"
+                          },
+                          "flat": {
+                            "$ref": "#/components/schemas/Flat"
+                          },
+                          "members": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "user_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "display_name": {
+                                  "type": "string"
+                                },
+                                "category": {
+                                  "type": "string"
+                                },
+                                "membership_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "sponsor_membership_id": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "nullable": true
+                                },
+                                "relationship_to_sponsor": {
+                                  "type": "string",
+                                  "enum": [
+                                    "CHILD",
+                                    "GRANDCHILD",
+                                    "GRANDPARENT",
+                                    "OTHER",
+                                    "PARENT",
+                                    "SIBLING",
+                                    "SPOUSE"
+                                  ],
+                                  "nullable": true,
+                                  "description": "Relationship to a sponsor; null means not supplied/unknown (legacy data)."
+                                },
+                                "is_current_occupant": {
+                                  "type": "boolean",
+                                  "nullable": true,
+                                  "description": "Administrator-confirmed occupancy, not implied by an owner/tenant category; null means unknown."
+                                }
+                              }
+                            }
+                          },
+                          "relationships": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "sponsor_membership_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "family_membership_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "relationship_to_sponsor": {
+                                  "type": "string",
+                                  "enum": [
+                                    "CHILD",
+                                    "GRANDCHILD",
+                                    "GRANDPARENT",
+                                    "OTHER",
+                                    "PARENT",
+                                    "SIBLING",
+                                    "SPOUSE"
+                                  ],
+                                  "nullable": true,
+                                  "description": "Relationship to a sponsor; null means not supplied/unknown (legacy data)."
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Eligible resident membership required"
+          }
+        }
+      }
+    },
+    "/api/admin/memberships/{membership_id}/occupancy": {
+      "patch": {
+        "tags": [
+          "Admin \u2014 Memberships"
+        ],
+        "summary": "Confirm or correct current physical occupancy",
+        "description": "Admin-only confirmation; does not assign formal voting rights. Requires active membership and reason; every action is audited. A null occupancy value means no admin confirmation yet.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "membership_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "is_current_occupant",
+                  "reason"
+                ],
+                "properties": {
+                  "is_current_occupant": {
+                    "type": "boolean",
+                    "example": false
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 1200,
+                    "example": "Owner lives elsewhere; tenant currently occupies the flat."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated membership; occupancy confirmation timestamp included"
+          },
+          "400": {
+            "description": "Invalid body"
+          },
+          "401": {
+            "description": "Login required"
+          },
+          "403": {
+            "description": "Administrator permission required or CSRF missing"
+          },
+          "404": {
+            "description": "Membership not found"
+          },
+          "409": {
+            "description": "Membership is not active"
+          }
+        }
+      }
+    },
+    "/api/admin/memberships/{membership_id}/relationship": {
+      "patch": {
+        "tags": [
+          "Admin \u2014 Memberships"
+        ],
+        "summary": "Correct approved family relationship to sponsor",
+        "description": "Administrator can correct/clear family relationship label, never change the sponsor link. Action is audited.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "membership_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "relationship_to_sponsor",
+                  "reason"
+                ],
+                "properties": {
+                  "relationship_to_sponsor": {
+                    "type": "string",
+                    "enum": [
+                      "SPOUSE",
+                      "CHILD",
+                      "PARENT",
+                      "SIBLING",
+                      "GRANDPARENT",
+                      "GRANDCHILD",
+                      "OTHER"
+                    ],
+                    "nullable": true
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 1200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated family membership"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Login required"
+          },
+          "403": {
+            "description": "Not an administrator"
+          },
+          "404": {
+            "description": "Membership not found"
+          },
+          "409": {
+            "description": "Not a sponsored family membership"
+          }
+        }
+      }
+    },
+    "/api/admin/households": {
+      "get": {
+        "tags": [
+          "Admin \u2014 Households"
+        ],
+        "summary": "List households independently, with limited approved member records",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "households": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/HouseholdDirectoryEntry"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/memberships/{membership_id}/evidence-requests": {
+      "post": {
+        "tags": [
+          "Member Evidence Requests"
+        ],
+        "summary": "Request exception evidence from specific membership",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason",
+                  "evidence_needed"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 1200
+                  },
+                  "evidence_needed": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "request": {
+                      "$ref": "#/components/schemas/MemberEvidenceRequest"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        },
+        "parameters": [
+          {
+            "name": "membership_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/evidence-requests": {
+      "get": {
+        "tags": [
+          "Member Evidence Requests"
+        ],
+        "summary": "Admin evidence request directory",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requests": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MemberEvidenceRequest"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ]
+      }
+    },
+    "/api/me/evidence-requests": {
+      "get": {
+        "tags": [
+          "Member Evidence Requests"
+        ],
+        "summary": "View evidence requests for own memberships only",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requests": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MemberEvidenceRequest"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/me/evidence-requests/{entry_id}/upload": {
+      "post": {
+        "tags": [
+          "Member Evidence Requests"
+        ],
+        "summary": "Submit one private PDF/JPG/PNG up to 5 MiB",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Submitted; request.status=SUBMITTED"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Invalid status"
+          }
+        }
+      }
+    },
+    "/api/member-evidence/{entry_id}/file": {
+      "get": {
+        "tags": [
+          "Member Evidence Requests"
+        ],
+        "summary": "Download evidence (owning member or authorized admin only)",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private attachment",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or not authorized"
+          }
+        }
+      }
+    },
+    "/api/admin/evidence-requests/{entry_id}/resolve": {
+      "post": {
+        "tags": [
+          "Member Evidence Requests"
+        ],
+        "summary": "Admin resolves evidence without changing membership status",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "decision",
+                  "review_note"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "ACCEPTED",
+                      "REJECTED",
+                      "CANCELLED"
+                    ]
+                  },
+                  "review_note": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 1200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "request": {
+                      "$ref": "#/components/schemas/MemberEvidenceRequest"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        },
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
