@@ -44,8 +44,12 @@ ADMIN_PERMISSIONS = frozenset({
     "identity.admin.documents.review",
     "identity.invitations.create",
 })
+# Official notice publishing. SOCIETY_ADMIN only; not part of shared admin or resident grants.
+SOCIETY_ADMIN_PERMISSIONS = frozenset({
+    "society.notices.manage",
+})
 KNOWN_PERMISSIONS = (ACCOUNT_PERMISSIONS | VERIFIED_ACCOUNT_PERMISSIONS |
-                     RESIDENT_PERMISSIONS | ADMIN_PERMISSIONS)
+                     RESIDENT_PERMISSIONS | ADMIN_PERMISSIONS | SOCIETY_ADMIN_PERMISSIONS)
 ADMIN_ROLES = frozenset({"SOCIETY_ADMIN", "PLATFORM_ADMIN"})
 
 
@@ -76,6 +80,8 @@ def effective_permissions(*, roles=None, eligible_memberships=None) -> list[str]
         permissions.update(RESIDENT_PERMISSIONS)
     if role_names.intersection(ADMIN_ROLES):
         permissions.update(ADMIN_PERMISSIONS)
+    if "SOCIETY_ADMIN" in role_names:
+        permissions.update(SOCIETY_ADMIN_PERMISSIONS)
     return sorted(permissions)
 
 

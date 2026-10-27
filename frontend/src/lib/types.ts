@@ -14,6 +14,30 @@ export interface FamilyMember {user_id:string; display_name:string; category:Cat
 export interface FamilyHousehold {household_id:string; household_label:string; flat:Flat; members:FamilyMember[]; relationships:{sponsor_membership_id:string;family_membership_id:string;relationship_to_sponsor:Relationship|null}[]}
 export interface Household {id:string; label:string; flat:Flat; members:FamilyMember[]}
 export interface ApiProblem {error:{code:string;message:string;fields?:Record<string,string>}}
+export type NoticeStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export interface Notice {id:string; society_id:number; title:string; body:string; status:NoticeStatus; expires_at:string|null; published_at:string|null; archived_at:string|null; replaces_notice_id:string|null; created_by_user_id:string; published_by_user_id:string|null; archived_by_user_id:string|null; created_at:string; updated_at:string; visible_to_residents:boolean}
+export interface NoticePage {notices:Notice[]; pagination:{limit:number; offset:number}}
+export interface Discussion {id:string; society_id:number; title:string; body:string; created_by_user_id:string; author_display_name:string; created_at:string; updated_at:string; comment_count:number}
+export interface DiscussionComment {id:string; discussion_id:string; parent_comment_id:string|null; body:string; created_by_user_id:string; author_display_name:string; created_at:string}
+export interface DiscussionPage {discussions:Discussion[]; pagination:{limit:number; offset:number}}
+export type SuggestionCategory = 'MAINTENANCE' | 'SAFETY' | 'AMENITIES' | 'COMMUNITY' | 'OTHER';
+export interface Suggestion {id:string; society_id:number; title:string; description:string; category:SuggestionCategory; status:'SUBMITTED'; created_by_user_id:string; author_display_name:string; created_at:string; updated_at:string}
+export interface SuggestionPage {suggestions:Suggestion[]; pagination:{limit:number; offset:number}}
+export interface GovernanceEvent {id:string; occurred_at:string; event_type:string; summary:string; resource_path:string|null}
+export interface GovernanceHistory {events:GovernanceEvent[]; pagination:{limit:number; offset:number}}
+export interface PollOption {id:string; label:string; position:number; vote_count:number|null}
+export interface Poll {id:string; society_id:number; question:string; binding:false; status:'SCHEDULED'|'OPEN'|'CLOSED'; opens_at:string; closes_at:string; created_by_user_id:string; author_display_name:string; created_at:string; my_option_id:string|null; options:PollOption[]}
+export interface PollPage {polls:Poll[]; pagination:{limit:number; offset:number}}
+export interface Dispute {id:string; society_id:number; title:string; description:string; status:'SUBMITTED'; created_at:string; updated_at:string}
+export interface DisputePage {disputes:Dispute[]; pagination:{limit:number; offset:number}}
+export interface Proposal {id:string; society_id:number; title:string; summary:string; status:'SUBMITTED'; voting_open:false; created_by_user_id:string; author_display_name:string; created_at:string; updated_at:string}
+export interface ProposalPage {proposals:Proposal[]; pagination:{limit:number; offset:number}}
+export interface AdminDiscussion {id:string; title:string; body:string; author_display_name:string; created_at:string; updated_at:string; comment_count:number}
+export interface AdminDiscussionComment {id:string; discussion_id:string; parent_comment_id:string|null; body:string; author_display_name:string; created_at:string}
+export interface AdminSuggestion {id:string; title:string; description:string; category:SuggestionCategory; status:'SUBMITTED'; author_display_name:string; created_at:string; updated_at:string}
+export interface AdminPollOption {id:string; label:string; position:number; vote_count:number|null}
+export interface AdminPoll {id:string; question:string; binding:false; status:'SCHEDULED'|'OPEN'|'CLOSED'; opens_at:string; closes_at:string; author_display_name:string; options:AdminPollOption[]}
+export interface AdminProposal {id:string; title:string; summary:string; status:'SUBMITTED'; voting_open:false; author_display_name:string; created_at:string; updated_at:string}
 
 /** New Family Auto-Activation API: the outcome, NOT invitation category, determines navigation. */
 export type InvitationAcceptance =

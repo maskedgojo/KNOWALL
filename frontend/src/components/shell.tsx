@@ -19,7 +19,10 @@ export function Protected({children,admin=false}:{children:ReactNode;admin?:bool
   return <AppShell admin={admin}>{children}</AppShell>;
 }
 function AppShell({children,admin}:{children:ReactNode;admin:boolean}){
-  const {user,access,logout}=useAuth();const pathname=usePathname();const [open,setOpen]=useState(false);const nav=admin?ADMIN:RESIDENT;
+  const {user,access,logout}=useAuth();const pathname=usePathname();const [open,setOpen]=useState(false);
+  const residentNav=[...RESIDENT,...(access?.permissions.includes('society.notices.read')?[['/notices','Official notices','clipboard'],['/discussions','Discussions','users'],['/suggestions','Suggestions','file'],['/polls','Informal polls','check'],['/proposals','Proposals','file'],['/disputes','My disputes','lock'],['/governance','Governance history','shield']]:[])];
+  const adminNav=[...ADMIN,...(access?.permissions.includes('society.notices.manage')?[['/admin/notices','Official notices','clipboard'],['/admin/community-activity','Community Activity','users']]:[])];
+  const nav=admin?adminNav:residentNav;
   return <div className="app-layout">
     {open&&<button className="mobile-overlay" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}
     <aside className={`sidebar ${open?'sidebar-open':''}`}>

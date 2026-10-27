@@ -25,6 +25,7 @@ This response is illustrative, abbreviated and **not a copy of an actual respons
 - A verified account may submit applications and accept invitations; these endpoints still validate their own conditions.
 - RESIDENT/COMMITTEE/SOCIETY_ADMIN/PLATFORM_ADMIN role **alone** does not grant resident society capabilities. A verified, active, in-date, eligible membership is required, including a valid family sponsor when applicable.
 - SOCIETY_ADMIN or PLATFORM_ADMIN role with verified email grants administrative identity actions without a resident membership. User suspension disables all logged-in access.
+- A verified, active SOCIETY_ADMIN role also grants `society.notices.manage` without a resident membership. PLATFORM_ADMIN and COMMITTEE_MEMBER do not receive it. This code does not grant `society.notices.read`; resident read still requires current eligible membership.
 - Future Modules 2–6 can use the permission guard **and** enforce their own domain eligibility (vote eligibility, resource ownership, booking limits, department assignment, etc.). Identity permissions do not implement those modules.
 - For single-society V1, no multi-society scope or switching is implemented.
 - Revoking a role, suspending/expiring a membership, or invalidating a sponsor changes the *next request's* effective permissions. Do not cache `/api/me/access` indefinitely on the frontend.
@@ -55,6 +56,8 @@ Do **not** add this sample endpoint to the KNOWALL backend; it only demonstrates
 **Eligible verified resident:** `identity.households.read`, `identity.invitations.create`, `society.notices.read`, `society.maintenance.create`, `society.facilities.book`, `locality.listings.suggest`, `civic.issues.create`, `civic.issues.support`
 
 **Verified society/platform admin:** `identity.admin.manage`, `identity.admin.applications.read`, `identity.admin.applications.decide`, `identity.admin.memberships.manage`, `identity.admin.audit.read`, `identity.admin.documents.review`, `identity.invitations.create`
+
+**Verified SOCIETY_ADMIN only:** `society.notices.manage`
 
 **Important:** Codes for society/locality/civic Modules 2–6 are capability contracts for future modules, not implemented endpoints. The owner module must still implement its routes and security policies. Formal voting rights are **not** granted globally; Module 2 determines per-ballot eligibility from membership information and its configured rules.
 
