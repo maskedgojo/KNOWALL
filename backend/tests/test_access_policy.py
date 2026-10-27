@@ -64,6 +64,9 @@ def sample(app):
             ("resident", PermissionRole.RESIDENT, True),
             ("admin", PermissionRole.SOCIETY_ADMIN, True),
             ("unverified_admin", PermissionRole.SOCIETY_ADMIN, False),
+            ("platform_admin", PermissionRole.PLATFORM_ADMIN, True),
+            ("platform_resident", PermissionRole.PLATFORM_ADMIN, True),
+            ("committee", PermissionRole.COMMITTEE_MEMBER, True),
             ("role_only", PermissionRole.RESIDENT, True),
             ("suspended_member", PermissionRole.RESIDENT, True),
         ):
@@ -79,6 +82,8 @@ def sample(app):
             actors[name] = user
         for name, status in (
             ("resident", MembershipStatus.ACTIVE),
+            ("platform_resident", MembershipStatus.ACTIVE),
+            ("committee", MembershipStatus.ACTIVE),
             ("suspended_member", MembershipStatus.SUSPENDED),
         ):
             db.session.add(Membership(
@@ -122,6 +127,7 @@ def test_active_resident_gets_society_capabilities(client, sample):
     p = set(result.json["permissions"])
     assert "identity.households.read" in p
     assert "society.notices.read" in p
+    assert "society.notices.manage" not in p
     assert "civic.issues.create" in p
     assert "identity.admin.manage" not in p
 
@@ -145,16 +151,58 @@ def test_admin_does_not_require_resident_membership(client, sample):
     login(client, "admin@example.test")
     result = client.get("/api/me/access")
     assert result.status_code == 200
+    permissions = set(result.json["permissions"])
     assert result.json["verified_resident"] is False
-    assert "identity.admin.manage" in result.json["permissions"]
-    assert "society.notices.read" not in result.json["permissions"]
+    assert "identity.admin.manage" in permissions
+    assert "identity.admin.applications.read" in permissions
+    assert "identity.admin.applications.decide" in permissions
+    assert "identity.admin.memberships.manage" in permissions
+    assert "identity.admin.audit.read" in permissions
+    assert "identity.admin.documents.review" in permissions
+    assert "identity.invitations.create" in permissions
+    assert "society.notices.manage" in permissions
+    assert "society.notices.read" not in permissions
     assert client.get("/api/admin/applications").status_code == 200
 
 
 def test_unverified_admin_cannot_use_admin_routes(client, sample):
     login(client, "unverified_admin@example.test")
-    assert "identity.admin.manage" not in client.get("/api/me/access").json["permissions"]
+    permissions = client.get("/api/me/access").json["permissions"]
+    assert "identity.admin.manage" not in permissions
+    assert "society.notices.manage" not in permissions
     assert client.get("/api/admin/applications").status_code == 403
+
+
+def test_platform_admin_keeps_admin_access_without_notice_management(client, sample):
+    login(client, "platform_admin@example.test")
+    result = client.get("/api/me/access")
+    permissions = set(result.json["permissions"])
+    assert result.json["verified_resident"] is False
+    assert "identity.admin.manage" in permissions
+    assert "identity.admin.applications.read" in permissions
+    assert "society.notices.manage" not in permissions
+    assert "society.notices.read" not in permissions
+
+
+def test_platform_admin_membership_grants_read_without_notice_management(client, sample):
+    login(client, "platform_resident@example.test")
+    result = client.get("/api/me/access")
+    permissions = set(result.json["permissions"])
+    assert result.json["verified_resident"] is True
+    assert "identity.admin.manage" in permissions
+    assert "society.notices.read" in permissions
+    assert "identity.households.read" in permissions
+    assert "society.notices.manage" not in permissions
+
+
+def test_committee_member_can_read_notices_but_cannot_manage_them(client, sample):
+    login(client, "committee@example.test")
+    result = client.get("/api/me/access")
+    permissions = set(result.json["permissions"])
+    assert result.json["verified_resident"] is True
+    assert "society.notices.read" in permissions
+    assert "society.notices.manage" not in permissions
+    assert "identity.admin.manage" not in permissions
 
 
 def test_revoking_admin_role_removes_access_next_request(client, app, sample):
@@ -166,7 +214,9 @@ def test_revoking_admin_role_removes_access_next_request(client, app, sample):
         row.revoked_at = datetime.now(timezone.utc)
         db.session.commit()
     assert client.get("/api/admin/applications").status_code == 403
-    assert "identity.admin.manage" not in client.get("/api/me/access").json["permissions"]
+    permissions = client.get("/api/me/access").json["permissions"]
+    assert "identity.admin.manage" not in permissions
+    assert "society.notices.manage" not in permissions
 
 
 def test_membership_expiration_revokes_effective_capabilities(client, app, sample):
@@ -182,6 +232,7 @@ def test_membership_expiration_revokes_effective_capabilities(client, app, sampl
 
 
 def test_unknown_permission_fail_closed():
+    assert "society.notices.manage" in KNOWN_PERMISSIONS
     assert "society.voting.cast" not in KNOWN_PERMISSIONS
     with pytest.raises(ValueError):
         requires_permission("society.voting.cast")

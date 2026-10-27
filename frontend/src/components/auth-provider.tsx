@@ -1,7 +1,7 @@
 'use client';
 import {createContext,useCallback,useContext,useEffect,useState} from 'react';
 import {authApi,residentApi} from '@/lib/endpoints';
-import {clearCsrf} from '@/lib/api';
+import {ApiError, clearCsrf, refreshCsrf} from '@/lib/api';
 import {clearPendingInvitation} from '@/lib/invitation-handoff';
 import type {Access,User} from '@/lib/types';
 import {useRouter} from 'next/navigation';
@@ -12,11 +12,12 @@ export function AuthProvider({children}:{children:React.ReactNode}){
   const [user,setUser]=useState<User|null>(null),[access,setAccess]=useState<Access|null>(null),[loading,setLoading]=useState(true);
   const router=useRouter();
   const refresh=useCallback(async()=>{
-    try{const {user:current}=await authApi.me();const permission=await residentApi.access();setUser(current);setAccess(permission);}catch{setUser(null);setAccess(null);}finally{setLoading(false);}
+    try{const {user:current}=await authApi.me();const permission=await residentApi.access();setUser(current);setAccess(permission);await refreshCsrf().catch(()=>{});}catch{setUser(null);setAccess(null);}finally{setLoading(false);}
   },[]);
   const signedIn=useCallback(async(current:User)=>{setLoading(true);setUser(current);try{setAccess(await residentApi.access());}finally{setLoading(false);}},[]);
   const logout=useCallback(async(options?:{preserveInvitation?:boolean})=>{
-    await authApi.logout();
+    try{await authApi.logout();}
+    catch(cause){if(!(cause instanceof ApiError) || (cause.status!==401 && cause.code!=='CSRF_REQUIRED')) throw cause;}
     if(!options?.preserveInvitation) clearPendingInvitation();
     setUser(null);setAccess(null);router.replace('/login');
   },[router]);

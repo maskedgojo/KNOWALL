@@ -3,7 +3,7 @@
   "info": {
     "title": "KNOWALL \u2014 Module 1 API",
     "version": "1.1.0-family-auto-activation",
-    "description": "Single-society demo backend. All state-changing /api operations require an X-CSRF-Token from GET /api/auth/csrf. The session cookie is HttpOnly and stored by the browser. Use GET /api/auth/csrf before login and again after login (login rotates the CSRF token). Swagger UI cannot set browser authentication cookies manually: execute login in the same Swagger origin, then try protected endpoints. Demo console email links are development-only. Phase 6 adds draft/submission and invitation APIs. Pending applications DO NOT confer resident rights. Phase 7 adds private document upload and on-demand OCR; Phase 8 adds human administrator approvals, correction/rejection workflows, memberships and audit history. Enhancement: optional personal details, sponsored-family relationship, household family tree and administrator-confirmed current occupancy. No voting system is added. Family administrator review enhancement: explicit, live sponsor_context and advisory OCR-to-sponsor name comparison. No automatic family relationship validation or eligibility based on occupancy."
+    "description": "Single-society demo backend. Module 2 Notice V1 adds official notices for a verified Society Admin and currently eligible residents. Eligible residents can also create society discussions, threaded comments, and suggestions through society.notices.read. No separate discussion or suggestion permission is registered. Suggestion status stays SUBMITTED; committee decisions, reporting, and moderation are not implemented. Eligible residents can read a safe governance history of published notices, discussions, and suggestions from the existing audit log. All state-changing /api operations require an X-CSRF-Token from GET /api/auth/csrf. The session cookie is HttpOnly and stored by the browser. Use GET /api/auth/csrf before login and again after login (login rotates the CSRF token). Swagger UI cannot set browser authentication cookies manually: execute login in the same Swagger origin, then try protected endpoints. Demo console email links are development-only. Phase 6 adds draft/submission and invitation APIs. Pending applications DO NOT confer resident rights. Phase 7 adds private document upload and on-demand OCR; Phase 8 adds human administrator approvals, correction/rejection workflows, memberships and audit history. Enhancement: optional personal details, sponsored-family relationship, household family tree and administrator-confirmed current occupancy. No voting system is added. Family administrator review enhancement: explicit, live sponsor_context and advisory OCR-to-sponsor name comparison. No automatic family relationship validation or eligibility based on occupancy."
   },
   "servers": [
     {
@@ -49,6 +49,38 @@
     {
       "name": "Admin \u2014 Households",
       "description": "Household-scoped directory with limited personal information."
+    },
+    {
+      "name": "Official Notices",
+      "description": "Society-wide notices. Management requires society.notices.manage. Resident reads require society.notices.read and return only published, unarchived, unexpired notices."
+    },
+    {
+      "name": "Community Discussions",
+      "description": "Society-wide discussions and threaded comments for an eligible resident with society.notices.read. Reporting and moderation are not implemented."
+    },
+    {
+      "name": "Resident Suggestions",
+      "description": "Society-wide suggestions for an eligible resident with society.notices.read. Status is always SUBMITTED. Committee decisions are not implemented."
+    },
+    {
+      "name": "Governance History",
+      "description": "Resident-safe events from the existing audit log. Requires society.notices.read. Raw audit details are not returned."
+    },
+    {
+      "name": "Informal Polls",
+      "description": "Non-binding polls for an eligible resident. Counts are hidden until close. Voter identities are not returned."
+    },
+    {
+      "name": "Private Disputes",
+      "description": "A resident can submit and read only their own disputes. No handler or appeal route is registered."
+    },
+    {
+      "name": "Proposals",
+      "description": "Proposal records without ballots. voting_open is always false."
+    },
+    {
+      "name": "Community Activity",
+      "description": "Read-only Society Admin review of discussions, suggestions, informal polls, and proposals. Requires society.notices.manage. Private disputes, voter identities, resident ids, and raw audit details are omitted."
     }
   ],
   "components": {
@@ -95,6 +127,67 @@
         "required": [
           "error"
         ]
+      },
+      "Notice": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "society_id": {"type": "integer"},
+          "title": {"type": "string"},
+          "body": {"type": "string"},
+          "status": {"type": "string", "enum": ["DRAFT", "PUBLISHED", "ARCHIVED"]},
+          "expires_at": {"type": "string", "format": "date-time", "nullable": true},
+          "published_at": {"type": "string", "format": "date-time", "nullable": true},
+          "archived_at": {"type": "string", "format": "date-time", "nullable": true},
+          "replaces_notice_id": {"type": "string", "format": "uuid", "nullable": true},
+          "created_by_user_id": {"type": "string", "format": "uuid"},
+          "published_by_user_id": {"type": "string", "format": "uuid", "nullable": true},
+          "archived_by_user_id": {"type": "string", "format": "uuid", "nullable": true},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"},
+          "visible_to_residents": {"type": "boolean"}
+        }
+      },
+      "Discussion": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "society_id": {"type": "integer"},
+          "title": {"type": "string"},
+          "body": {"type": "string"},
+          "created_by_user_id": {"type": "string", "format": "uuid"},
+          "author_display_name": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"},
+          "comment_count": {"type": "integer"}
+        }
+      },
+      "DiscussionComment": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "discussion_id": {"type": "string", "format": "uuid"},
+          "parent_comment_id": {"type": "string", "format": "uuid", "nullable": true},
+          "body": {"type": "string"},
+          "created_by_user_id": {"type": "string", "format": "uuid"},
+          "author_display_name": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Suggestion": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "society_id": {"type": "integer"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "category": {"type": "string", "enum": ["MAINTENANCE", "SAFETY", "AMENITIES", "COMMUNITY", "OTHER"]},
+          "status": {"type": "string", "enum": ["SUBMITTED"]},
+          "created_by_user_id": {"type": "string", "format": "uuid"},
+          "author_display_name": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
       },
       "User": {
         "type": "object",
@@ -3864,6 +3957,223 @@
           }
         ]
       }
+    },
+    "/api/admin/notices": {
+      "get": {
+        "tags": ["Official Notices"],
+        "summary": "List notices for the server-resolved society, including drafts, expired, and archived",
+        "security": [{"SessionCookie": []}],
+        "parameters": [
+          {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["DRAFT", "PUBLISHED", "ARCHIVED"]}},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 30}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "minimum": 0, "default": 0}}
+        ],
+        "responses": {"200": {"description": "Managed notices"}, "403": {"description": "society.notices.manage required"}}
+      },
+      "post": {
+        "tags": ["Official Notices"],
+        "summary": "Create a draft. society_id is rejected; the server uses society_profile id 1",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["title", "body"], "properties": {"title": {"type": "string", "minLength": 3, "maxLength": 160}, "body": {"type": "string", "minLength": 1, "maxLength": 8000}, "expires_at": {"type": "string", "format": "date-time", "nullable": true}}}}}},
+        "responses": {"201": {"description": "Draft created", "content": {"application/json": {"schema": {"type": "object", "properties": {"notice": {"$ref": "#/components/schemas/Notice"}}}}}}, "400": {"description": "Validation error"}, "403": {"description": "Forbidden"}}
+      }
+    },
+    "/api/admin/notices/{notice_id}": {
+      "get": {
+        "tags": ["Official Notices"],
+        "summary": "Get one notice regardless of resident visibility",
+        "security": [{"SessionCookie": []}],
+        "parameters": [{"name": "notice_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "responses": {"200": {"description": "Notice"}, "404": {"description": "Not found in this society"}}
+      },
+      "patch": {
+        "tags": ["Official Notices"],
+        "summary": "Edit a draft. Published and archived notices are immutable",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "parameters": [{"name": "notice_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "properties": {"title": {"type": "string", "minLength": 3, "maxLength": 160}, "body": {"type": "string", "minLength": 1, "maxLength": 8000}, "expires_at": {"type": "string", "format": "date-time", "nullable": true}}}}}},
+        "responses": {"200": {"description": "Updated draft"}, "409": {"description": "Notice is immutable"}}
+      }
+    },
+    "/api/admin/notices/{notice_id}/publish": {
+      "post": {
+        "tags": ["Official Notices"],
+        "summary": "Publish a draft. Expiry must be absent or in the future",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "parameters": [{"name": "notice_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false}}}},
+        "responses": {"200": {"description": "Published"}, "409": {"description": "Invalid state"}}
+      }
+    },
+    "/api/admin/notices/{notice_id}/archive": {
+      "post": {
+        "tags": ["Official Notices"],
+        "summary": "Archive a draft or published notice. Archive is terminal and separate from expiry",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "parameters": [{"name": "notice_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false}}}},
+        "responses": {"200": {"description": "Archived"}, "409": {"description": "Already archived"}}
+      }
+    },
+    "/api/admin/notices/{notice_id}/replacements": {
+      "post": {
+        "tags": ["Official Notices"],
+        "summary": "Create a draft copy of a previously published notice. The source is not changed or archived",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "parameters": [{"name": "notice_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false}}}},
+        "responses": {"201": {"description": "Replacement draft"}, "409": {"description": "Source was never published"}}
+      }
+    },
+    "/api/notices": {
+      "get": {
+        "tags": ["Official Notices"],
+        "summary": "List published, unarchived, unexpired notices for the current eligible resident",
+        "security": [{"SessionCookie": []}],
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 30}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "minimum": 0, "default": 0}}
+        ],
+        "responses": {"200": {"description": "Visible notices"}, "403": {"description": "society.notices.read required"}}
+      }
+    },
+    "/api/notices/{notice_id}": {
+      "get": {
+        "tags": ["Official Notices"],
+        "summary": "Read one currently visible notice. Drafts, archived, and expired notices return 404",
+        "security": [{"SessionCookie": []}],
+        "parameters": [{"name": "notice_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "responses": {"200": {"description": "Visible notice"}, "404": {"description": "Not visible"}}
+      }
+    },
+    "/api/discussions": {
+      "get": {
+        "tags": ["Community Discussions"],
+        "summary": "List society discussions for an eligible resident",
+        "security": [{"SessionCookie": []}],
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 30}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "minimum": 0, "default": 0}}
+        ],
+        "responses": {"200": {"description": "Discussions in the configured society"}, "403": {"description": "society.notices.read required"}}
+      },
+      "post": {
+        "tags": ["Community Discussions"],
+        "summary": "Create a discussion. society_id is rejected; the server uses society_profile id 1",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["title", "body"], "properties": {"title": {"type": "string", "minLength": 3, "maxLength": 160}, "body": {"type": "string", "minLength": 1, "maxLength": 8000}}}}}},
+        "responses": {"201": {"description": "Discussion created", "content": {"application/json": {"schema": {"type": "object", "properties": {"discussion": {"$ref": "#/components/schemas/Discussion"}}}}}}, "400": {"description": "Validation error"}, "403": {"description": "Forbidden"}}
+      }
+    },
+    "/api/discussions/{discussion_id}": {
+      "get": {
+        "tags": ["Community Discussions"],
+        "summary": "Read one discussion and its comments. Unknown discussions return 404",
+        "security": [{"SessionCookie": []}],
+        "parameters": [{"name": "discussion_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "responses": {"200": {"description": "Discussion and comments"}, "404": {"description": "Not found in this society"}}
+      }
+    },
+    "/api/discussions/{discussion_id}/comments": {
+      "post": {
+        "tags": ["Community Discussions"],
+        "summary": "Add a comment. parent_comment_id must be null or a comment in the same discussion",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "parameters": [{"name": "discussion_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["body"], "properties": {"body": {"type": "string", "minLength": 1, "maxLength": 4000}, "parent_comment_id": {"type": "string", "format": "uuid", "nullable": true}}}}}},
+        "responses": {"201": {"description": "Comment created"}, "404": {"description": "Discussion or parent comment not found"}, "409": {"description": "Parent comment belongs to another discussion"}}
+      }
+    },
+    "/api/suggestions": {
+      "get": {
+        "tags": ["Resident Suggestions"],
+        "summary": "List society suggestions for an eligible resident",
+        "security": [{"SessionCookie": []}],
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 30}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "minimum": 0, "default": 0}}
+        ],
+        "responses": {"200": {"description": "Suggestions in the configured society"}, "403": {"description": "society.notices.read required"}}
+      },
+      "post": {
+        "tags": ["Resident Suggestions"],
+        "summary": "Submit a suggestion. society_id, author, and status are rejected; status is stored as SUBMITTED",
+        "security": [{"SessionCookie": [], "CsrfHeader": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["title", "description", "category"], "properties": {"title": {"type": "string", "minLength": 3, "maxLength": 160}, "description": {"type": "string", "minLength": 1, "maxLength": 8000}, "category": {"type": "string", "enum": ["MAINTENANCE", "SAFETY", "AMENITIES", "COMMUNITY", "OTHER"]}}}}}},
+        "responses": {"201": {"description": "Suggestion submitted", "content": {"application/json": {"schema": {"type": "object", "properties": {"suggestion": {"$ref": "#/components/schemas/Suggestion"}}}}}}, "400": {"description": "Validation error"}, "403": {"description": "Forbidden"}}
+      }
+    },
+    "/api/suggestions/{suggestion_id}": {
+      "get": {
+        "tags": ["Resident Suggestions"],
+        "summary": "Read one suggestion. There is no status-change operation",
+        "security": [{"SessionCookie": []}],
+        "parameters": [{"name": "suggestion_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "responses": {"200": {"description": "Suggestion"}, "404": {"description": "Not found in this society"}}
+      }
+    },
+    "/api/governance/history": {
+      "get": {
+        "tags": ["Governance History"],
+        "summary": "List resident-visible society governance events, newest first",
+        "security": [{"SessionCookie": []}],
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 30}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "minimum": 0, "default": 0}}
+        ],
+        "responses": {
+          "200": {"description": "Safe summaries for the configured society. Raw audit details are omitted."},
+          "403": {"description": "society.notices.read required"}
+        }
+      }
+    },
+    "/api/polls": {
+      "get": {"tags": ["Informal Polls"], "summary": "List informal non-binding polls", "security": [{"SessionCookie": []}], "responses": {"200": {"description": "Polls. Counts are null until a poll is closed."}, "403": {"description": "society.notices.read required"}, "503": {"description": "Migration not applied"}}},
+      "post": {"tags": ["Informal Polls"], "summary": "Create an informal non-binding poll", "security": [{"SessionCookie": [], "CsrfHeader": []}], "responses": {"201": {"description": "Poll created"}, "400": {"description": "Validation error"}}}
+    },
+    "/api/polls/{poll_id}": {
+      "get": {"tags": ["Informal Polls"], "summary": "Read one informal poll", "security": [{"SessionCookie": []}], "parameters": [{"name": "poll_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Poll"}, "404": {"description": "Not in this society"}}}
+    },
+    "/api/polls/{poll_id}/votes": {
+      "post": {"tags": ["Informal Polls"], "summary": "Record one non-binding response for the signed-in resident. The poll row is locked and a unique resident constraint rejects a second response.", "security": [{"SessionCookie": [], "CsrfHeader": []}], "parameters": [{"name": "poll_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"201": {"description": "Response recorded. The body does not identify any resident."}, "409": {"description": "Not open, closed, or already answered"}}}
+    },
+    "/api/disputes": {
+      "get": {"tags": ["Private Disputes"], "summary": "List only the current resident's disputes", "security": [{"SessionCookie": []}], "responses": {"200": {"description": "Own disputes"}}},
+      "post": {"tags": ["Private Disputes"], "summary": "Submit a private dispute. Status is stored as SUBMITTED", "security": [{"SessionCookie": [], "CsrfHeader": []}], "responses": {"201": {"description": "Dispute submitted"}, "400": {"description": "Validation error"}}}
+    },
+    "/api/disputes/{dispute_id}": {
+      "get": {"tags": ["Private Disputes"], "summary": "Read one dispute owned by the current resident", "security": [{"SessionCookie": []}], "parameters": [{"name": "dispute_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Own dispute"}, "404": {"description": "Not owned by the caller"}}}
+    },
+    "/api/proposals": {
+      "get": {"tags": ["Proposals"], "summary": "List proposals. No ballot is included", "security": [{"SessionCookie": []}], "responses": {"200": {"description": "Proposals"}}},
+      "post": {"tags": ["Proposals"], "summary": "Submit a proposal. Status and society id are rejected", "security": [{"SessionCookie": [], "CsrfHeader": []}], "responses": {"201": {"description": "Proposal submitted"}, "400": {"description": "Validation error"}}}
+    },
+    "/api/proposals/{proposal_id}": {
+      "get": {"tags": ["Proposals"], "summary": "Read one proposal. voting_open is false", "security": [{"SessionCookie": []}], "parameters": [{"name": "proposal_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Proposal"}, "404": {"description": "Not in this society"}}}
+    },
+    "/api/admin/community/discussions": {
+      "get": {"tags": ["Community Activity"], "summary": "Read-only discussion list for a Society Admin", "security": [{"SessionCookie": []}], "responses": {"200": {"description": "Discussions without resident ids"}, "403": {"description": "society.notices.manage required"}, "503": {"description": "Migration not applied"}}}
+    },
+    "/api/admin/community/discussions/{discussion_id}": {
+      "get": {"tags": ["Community Activity"], "summary": "Read one discussion and its comments without resident ids", "security": [{"SessionCookie": []}], "parameters": [{"name": "discussion_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Discussion and comments"}, "404": {"description": "Not in this society"}}}
+    },
+    "/api/admin/community/suggestions": {
+      "get": {"tags": ["Community Activity"], "summary": "Read-only suggestion list. Status stays SUBMITTED", "security": [{"SessionCookie": []}], "responses": {"200": {"description": "Suggestions"}, "403": {"description": "society.notices.manage required"}}}
+    },
+    "/api/admin/community/suggestions/{suggestion_id}": {
+      "get": {"tags": ["Community Activity"], "summary": "Read one suggestion. No decision fields", "security": [{"SessionCookie": []}], "parameters": [{"name": "suggestion_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Suggestion"}, "404": {"description": "Not in this society"}}}
+    },
+    "/api/admin/community/polls": {
+      "get": {"tags": ["Community Activity"], "summary": "Read-only informal polls. Counts are null until closed. No voter identities", "security": [{"SessionCookie": []}], "responses": {"200": {"description": "Polls"}, "403": {"description": "society.notices.manage required"}}}
+    },
+    "/api/admin/community/polls/{poll_id}": {
+      "get": {"tags": ["Community Activity"], "summary": "Read one informal poll without individual responses", "security": [{"SessionCookie": []}], "parameters": [{"name": "poll_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Poll"}, "404": {"description": "Not in this society"}}}
+    },
+    "/api/admin/community/proposals": {
+      "get": {"tags": ["Community Activity"], "summary": "Read-only proposals. voting_open is false", "security": [{"SessionCookie": []}], "responses": {"200": {"description": "Proposals"}, "403": {"description": "society.notices.manage required"}}}
+    },
+    "/api/admin/community/proposals/{proposal_id}": {
+      "get": {"tags": ["Community Activity"], "summary": "Read one proposal without a ballot", "security": [{"SessionCookie": []}], "parameters": [{"name": "proposal_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Proposal"}, "404": {"description": "Not in this society"}}}
     }
   }
 }

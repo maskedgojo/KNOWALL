@@ -1,5 +1,5 @@
 import {api} from './api';
-import type {Access,Application,CreateApplication,FamilyHousehold,Flat,Household,Membership,Relationship,Tower,User,InvitationAcceptance,AdminHousehold,Pagination,MemberEvidenceRequest} from './types';
+import type {Access,Application,CreateApplication,FamilyHousehold,Flat,Household,Membership,Relationship,Tower,User,InvitationAcceptance,AdminHousehold,Pagination,MemberEvidenceRequest,Notice,NoticePage,Discussion,DiscussionComment,DiscussionPage,Suggestion,SuggestionCategory,SuggestionPage,GovernanceHistory,Poll,PollPage,Dispute,DisputePage,Proposal,ProposalPage,AdminDiscussion,AdminDiscussionComment,AdminSuggestion,AdminPoll,AdminProposal} from './types';
 const pathId = (id:string)=>encodeURIComponent(id);
 export const authApi = {
   register:(values:{display_name:string;email:string;password:string;phone?:string|null})=>api<{message:string;user:User}>('/api/auth/register',{method:'POST',body:values}),
@@ -50,6 +50,53 @@ export const adminApi={
   occupancy:(id:string,is_current_occupant:boolean,reason:string)=>api<unknown>(`/api/admin/memberships/${pathId(id)}/occupancy`,{method:'PATCH',body:{is_current_occupant,reason}}),
   relationship:(id:string,relationship_to_sponsor:Relationship|null,reason:string)=>api<unknown>(`/api/admin/memberships/${pathId(id)}/relationship`,{method:'PATCH',body:{relationship_to_sponsor,reason}}),
   audit:(offset=0)=>api<unknown>(`/api/admin/audit-logs?limit=15&offset=${offset}`),
+};
+export const noticeApi={
+  visible:(offset=0,limit=30)=>api<NoticePage>(`/api/notices?limit=${limit}&offset=${offset}`),
+  visibleOne:(id:string)=>api<{notice:Notice}>(`/api/notices/${pathId(id)}`),
+  managed:(offset=0,limit=30)=>api<NoticePage>(`/api/admin/notices?limit=${limit}&offset=${offset}`),
+  create:(body:{title:string;body:string;expires_at:string|null})=>api<{notice:Notice}>('/api/admin/notices',{method:'POST',body}),
+  update:(id:string,body:{title?:string;body?:string;expires_at?:string|null})=>api<{notice:Notice}>(`/api/admin/notices/${pathId(id)}`,{method:'PATCH',body}),
+  publish:(id:string)=>api<{notice:Notice}>(`/api/admin/notices/${pathId(id)}/publish`,{method:'POST',body:{}}),
+  archive:(id:string)=>api<{notice:Notice}>(`/api/admin/notices/${pathId(id)}/archive`,{method:'POST',body:{}}),
+  replace:(id:string)=>api<{notice:Notice}>(`/api/admin/notices/${pathId(id)}/replacements`,{method:'POST',body:{}}),
+};
+export const discussionApi={
+  list:(offset=0,limit=30)=>api<DiscussionPage>(`/api/discussions?limit=${limit}&offset=${offset}`),
+  one:(id:string)=>api<{discussion:Discussion; comments:DiscussionComment[]}>(`/api/discussions/${pathId(id)}`),
+  create:(body:{title:string; body:string})=>api<{discussion:Discussion}>('/api/discussions',{method:'POST',body}),
+  comment:(id:string, body:{body:string; parent_comment_id:string|null})=>api<{comment:DiscussionComment}>(`/api/discussions/${pathId(id)}/comments`,{method:'POST',body}),
+};
+export const suggestionApi={
+  list:(offset=0,limit=30)=>api<SuggestionPage>(`/api/suggestions?limit=${limit}&offset=${offset}`),
+  one:(id:string)=>api<{suggestion:Suggestion}>(`/api/suggestions/${pathId(id)}`),
+  create:(body:{title:string; description:string; category:SuggestionCategory})=>api<{suggestion:Suggestion}>('/api/suggestions',{method:'POST',body}),
+};
+export const governanceApi={
+  history:(offset=0,limit=30)=>api<GovernanceHistory>(`/api/governance/history?limit=${limit}&offset=${offset}`),
+};
+export const pollApi={
+  list:(offset=0,limit=30)=>api<PollPage>(`/api/polls?limit=${limit}&offset=${offset}`),
+  one:(id:string)=>api<{poll:Poll}>(`/api/polls/${pathId(id)}`),
+  create:(body:{question:string; options:string[]; opens_at:string; closes_at:string})=>api<{poll:Poll}>('/api/polls',{method:'POST',body}),
+  vote:(id:string, option_id:string)=>api<{poll_id:string; my_option_id:string; binding:false}>(`/api/polls/${pathId(id)}/votes`,{method:'POST',body:{option_id}}),
+};
+export const disputeApi={
+  list:(offset=0,limit=30)=>api<DisputePage>(`/api/disputes?limit=${limit}&offset=${offset}`),
+  one:(id:string)=>api<{dispute:Dispute}>(`/api/disputes/${pathId(id)}`),
+  create:(body:{title:string; description:string})=>api<{dispute:Dispute}>('/api/disputes',{method:'POST',body}),
+};
+export const proposalApi={
+  list:(offset=0,limit=30)=>api<ProposalPage>(`/api/proposals?limit=${limit}&offset=${offset}`),
+  one:(id:string)=>api<{proposal:Proposal}>(`/api/proposals/${pathId(id)}`),
+  create:(body:{title:string; summary:string})=>api<{proposal:Proposal}>('/api/proposals',{method:'POST',body}),
+};
+export const communityActivityApi={
+  discussions:(offset=0,limit=30)=>api<{discussions:AdminDiscussion[]; pagination:{limit:number; offset:number}}>(`/api/admin/community/discussions?limit=${limit}&offset=${offset}`),
+  discussion:(id:string)=>api<{discussion:AdminDiscussion; comments:AdminDiscussionComment[]}>(`/api/admin/community/discussions/${pathId(id)}`),
+  suggestions:(offset=0,limit=30)=>api<{suggestions:AdminSuggestion[]; pagination:{limit:number; offset:number}}>(`/api/admin/community/suggestions?limit=${limit}&offset=${offset}`),
+  polls:(offset=0,limit=30)=>api<{polls:AdminPoll[]; pagination:{limit:number; offset:number}}>(`/api/admin/community/polls?limit=${limit}&offset=${offset}`),
+  proposals:(offset=0,limit=30)=>api<{proposals:AdminProposal[]; pagination:{limit:number; offset:number}}>(`/api/admin/community/proposals?limit=${limit}&offset=${offset}`),
 };
 /** Some Phase 7/8 response JSON schemas are underspecified in OpenAPI. Inspect before rendering. */
 export function asRecord(value:unknown):Record<string,unknown> {return value && typeof value==='object' && !Array.isArray(value)?value as Record<string,unknown>:{};}

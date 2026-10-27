@@ -20,7 +20,7 @@ export async function refreshCsrf():Promise<string> {
   }
   return pendingToken;
 }
-export type RequestOptions = {method?:'GET'|'POST'|'PATCH'; body?:unknown; signal?:AbortSignal; headers?:HeadersInit};
+export type RequestOptions = {method?:'GET'|'POST'|'PATCH'; body?:unknown; signal?:AbortSignal; headers?:HeadersInit; csrfRetry?:boolean};
 const mutating = (method:string) => ['POST','PUT','PATCH','DELETE'].includes(method);
 export async function api<T>(path:string, options:RequestOptions={}):Promise<T> {
   if (!path.startsWith('/api/')) throw new Error('Only relative /api/* routes are allowed');
@@ -42,10 +42,15 @@ export async function api<T>(path:string, options:RequestOptions={}):Promise<T> 
   if (!response.ok) {
     const error=(data && typeof data==='object' && 'error' in data ? (data as ApiProblem).error:undefined);
     if (response.status===403 && error?.code==='CSRF_REQUIRED') {
-      clearCsrf(); await refreshCsrf().catch(()=>{}); // do not automatically replay a mutation
+      clearCsrf();
+      const refreshed = await refreshCsrf().then(()=>true).catch(()=>false);
+      // Signing out is safe to repeat. Other mutations stay single-attempt so a stale token cannot submit twice.
+      if (refreshed && path === '/api/auth/logout' && !options.csrfRetry) return api(path, {...options, csrfRetry:true});
     }
     if (response.status===401 && typeof window!=='undefined') window.dispatchEvent(new Event('knowall:session-expired'));
-    const messages:Record<number,string>={400:'Please check the information submitted.',401:'Your session has expired. Please sign in again.',403:'You do not have access to this action.',404:'This record was not found or is no longer accessible.',409:'This request conflicts with the current record state. Review the status before retrying.',413:'The uploaded file exceeds the allowed size.',415:'Unsupported file type.',429:'Too many requests. Please try later.',500:'Flask encountered an internal error. Check the Flask terminal for the server traceback.',502:'The frontend proxy did not receive a valid response from Flask.',503:'The OCR service or a required backend dependency is unavailable.',504:'The request timed out. Check Flask before starting another OCR run.'};
+    const route = path.split('?')[0];
+    const collectionMiss = response.status === 404 && !error?.message && /^\/api\/(?:discussions|suggestions|polls|disputes|proposals|governance\/history|admin\/community\/(?:discussions|suggestions|polls|proposals))$/.test(route);
+    const messages:Record<number,string>={400:'Please check the information submitted.',401:'Your session has expired. Please sign in again.',403:'You do not have access to this action.',404: collectionMiss ? 'The running Flask server does not have this route yet. Restart Flask so it loads the current Module 2 routes. This is not a missing record.' : 'This record was not found or is no longer accessible.',409:'This request conflicts with the current record state. Review the status before retrying.',413:'The uploaded file exceeds the allowed size.',415:'Unsupported file type.',429:'Too many requests. Please try later.',500:'Flask encountered an internal error. Check the Flask terminal for the server traceback.',502:'The frontend proxy did not receive a valid response from Flask.',503:'A required backend dependency is unavailable. If this is a new Module 2 page, its database migration may not be applied yet.',504:'The request timed out. Check Flask before starting another OCR run.'};
     throw new ApiError(response.status,error?.code ?? `HTTP_${response.status}`,error?.message ?? messages[response.status] ?? 'The request could not be completed.',error?.fields ?? {});
   }
   // Adopt ONLY CSRF values returned by Flask after auth lifecycle transitions.

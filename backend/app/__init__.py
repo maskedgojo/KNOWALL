@@ -27,6 +27,12 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     # Import all identity tables, including member evidence requests, before migrations.
     from .modules.identity import models  # noqa: F401
+    from .modules.notices import models as notice_models  # noqa: F401
+    from .modules.discussions import models as discussion_models  # noqa: F401
+    from .modules.suggestions import models as suggestion_models  # noqa: F401
+    from .modules.polls import models as poll_models  # noqa: F401
+    from .modules.disputes import models as dispute_models  # noqa: F401
+    from .modules.proposals import models as proposal_models  # noqa: F401
     from .modules.identity.models import User
     from .modules.identity.auth import auth_bp
     from .modules.identity.auth.recovery_routes import recovery_bp
@@ -38,6 +44,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .modules.identity.admin import admin_bp
     from .modules.identity.member_evidence import member_evidence_bp
     from .modules.identity.member_evidence.routes import register_cli
+    from .modules.notices.routes import notices_bp
+    from .modules.discussions.routes import discussions_bp
+    from .modules.suggestions.routes import suggestions_bp
+    from .modules.governance.history import history_bp
+    from .modules.polls.routes import polls_bp
+    from .modules.disputes.routes import disputes_bp
+    from .modules.proposals.routes import proposals_bp
+    from .modules.governance.activity import activity_bp
     from .api_docs import api_docs_bp
 
     @login_manager.user_loader
@@ -74,6 +88,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(documents_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(member_evidence_bp)
+    app.register_blueprint(notices_bp)
+    app.register_blueprint(discussions_bp)
+    app.register_blueprint(suggestions_bp)
+    app.register_blueprint(history_bp)
+    app.register_blueprint(polls_bp)
+    app.register_blueprint(disputes_bp)
+    app.register_blueprint(proposals_bp)
+    app.register_blueprint(activity_bp)
     register_cli(app)
     app.register_blueprint(api_docs_bp)
 
