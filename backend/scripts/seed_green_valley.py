@@ -119,6 +119,68 @@ def _ensure_role(user: User, role: PermissionRole, admin: User | None = None) ->
     db.session.flush()
 
 
+def _seed_operations(admin: User) -> None:
+    """Module 3 demo amenities, event, maintenance and project. Skipped until migrated."""
+    from datetime import datetime, time, timezone
+    from sqlalchemy import inspect
+    from app.modules.operations.common import OPERATIONS_TABLES, SOCIETY_TZ
+    from app.modules.operations.models import (
+        DevelopmentProject, EventStatus, Facility, MaintenanceItem, MaintenanceStatus, ProjectMilestone,
+        ProjectStatus, SocietyEvent,
+    )
+
+    # Inspect through the session's connection: a separate engine checkout can
+    # reset a shared pooled connection and discard this seed's uncommitted rows.
+    if not set(OPERATIONS_TABLES) <= set(inspect(db.session.connection()).get_table_names()):
+        print("Module 3 tables not migrated yet; skipping operations demo data.")
+        return
+    for name, values in (
+        ("Clubhouse", dict(description="Party hall with kitchenette (fictional).", location="Tower A ground floor",
+                           capacity=60, open_minute=8 * 60, close_minute=22 * 60, slot_minutes=60,
+                           max_minutes_per_booking=240, requires_approval=True)),
+        ("Badminton Court", dict(description="Indoor court (fictional).", location="Sports block",
+                                 capacity=4, open_minute=6 * 60, close_minute=21 * 60, slot_minutes=60,
+                                 max_minutes_per_booking=60, requires_approval=False)),
+    ):
+        if db.session.scalar(select(Facility.id).where(Facility.society_id == 1, Facility.name == name)) is None:
+            db.session.add(Facility(society_id=1, name=name, booking_window_days=14, **values))
+
+    def local(days: int, hour: int) -> datetime:
+        when = date.today() + timedelta(days=days)
+        return datetime.combine(when, time(hour), tzinfo=SOCIETY_TZ).astimezone(timezone.utc)
+
+    if db.session.scalar(select(SocietyEvent.id).where(SocietyEvent.title == "Diwali Evening (demo)")) is None:
+        db.session.add(SocietyEvent(
+            society_id=1, organizer_user_id=admin.id, title="Diwali Evening (demo)",
+            description="Lights, sweets and music on the central lawn.", venue="Central lawn",
+            starts_at=local(10, 18), ends_at=local(10, 21), capacity=3, status=EventStatus.PUBLISHED,
+        ))
+    if db.session.scalar(select(MaintenanceItem.id).where(MaintenanceItem.title == "Lift B1 servicing (demo)")) is None:
+        db.session.add(MaintenanceItem(
+            society_id=1, asset="Lift B1", title="Lift B1 servicing (demo)",
+            description="Annual safety servicing. Please use Lift B2.", scheduled_start=local(3, 10),
+            scheduled_end=local(3, 14), status=MaintenanceStatus.PLANNED, created_by_user_id=admin.id,
+        ))
+    project = db.session.scalar(select(DevelopmentProject).where(DevelopmentProject.title == "Lobby renovation (demo)"))
+    if project is None:
+        project = DevelopmentProject(
+            society_id=1, title="Lobby renovation (demo)", description="New flooring and lighting for Tower B lobby.",
+            status=ProjectStatus.IN_PROGRESS, budget_note="Approved in AGM (fictional).",
+            expected_completion=date.today() + timedelta(days=60), created_by_user_id=admin.id,
+        )
+        db.session.add(project)
+        db.session.flush()
+        for title, status, percent, due in (
+            ("Remove old flooring", ProjectStatus.COMPLETED, 100, 10),
+            ("Lay new tiles", ProjectStatus.IN_PROGRESS, 40, 30),
+            ("Install lighting", ProjectStatus.PLANNED, 0, 55),
+        ):
+            db.session.add(ProjectMilestone(
+                project_id=project.id, title=title, status=status, percent=percent,
+                due_date=date.today() + timedelta(days=due), updated_by_user_id=admin.id,
+            ))
+
+
 def seed_green_valley() -> dict:
     """Call in a Flask app context. Commit once; errors roll back all changes."""
     admin_password = _require_password("KNOWALL_SEED_ADMIN_PASSWORD")
@@ -184,6 +246,8 @@ def seed_green_valley() -> dict:
                 category=ResidentCategory.TENANT, status=ApplicationStatus.DRAFT,
                 applicant_notes="Fictional example; document upload pending.",
             ))
+
+        _seed_operations(admin)
 
         already_logged = db.session.scalar(
             select(AuditLog.id).where(

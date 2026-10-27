@@ -13,6 +13,14 @@
   ],
   "tags": [
     {
+      "name": "Society Operations",
+      "description": "Module 3: amenities, bookings, society events, maintenance and development projects. Society-private."
+    },
+    {
+      "name": "Society Operations \u2014 Admin",
+      "description": "Module 3 management. Requires society.operations.manage (verified SOCIETY_ADMIN only)."
+    },
+    {
       "name": "Authentication"
     },
     {
@@ -934,6 +942,2113 @@
     }
   },
   "paths": {
+    "/api/events/{event_id}/volunteer": {
+      "post": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Volunteer for a published event while volunteer places remain. One per resident.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Volunteering"
+          },
+          "409": {
+            "description": "ALREADY_VOLUNTEERED, VOLUNTEER_SLOTS_FULL or EVENT_CLOSED"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Stop volunteering for an event.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawn"
+          },
+          "404": {
+            "description": "Not volunteering"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}/updates": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Post an organiser update shown to residents on a draft or published event.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Posted"
+          }
+        }
+      }
+    },
+    "/api/maintenance/requests/{request_id}/photos": {
+      "post": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Attach a private photo to a ticket. The reporter (until CONFIRMED) or a Society Admin (fix evidence). At most 6 per ticket. Others receive 404.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPG or PNG, at most 5 MB"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Returns the ticket's photos"
+          },
+          "400": {
+            "description": "Not a valid JPG/PNG or too large"
+          },
+          "404": {
+            "description": "Not found or not yours"
+          },
+          "409": {
+            "description": "PHOTO_LIMIT_REACHED or closed"
+          },
+          "415": {
+            "description": "Use multipart/form-data"
+          }
+        }
+      }
+    },
+    "/api/development/{project_id}/milestones/{milestone_id}/photos": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Attach a progress photo to a milestone. At most 6 per milestone.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "milestone_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPG or PNG, at most 5 MB"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Returns the milestone's photos"
+          },
+          "409": {
+            "description": "PHOTO_LIMIT_REACHED"
+          }
+        }
+      }
+    },
+    "/api/operations/photos/{photo_id}/file": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Download a private photo as an attachment (application/octet-stream). Ticket photos: reporter and Society Admin only. Milestone photos: eligible residents and admins. Anyone else receives 404.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File bytes"
+          },
+          "404": {
+            "description": "Not found or not permitted"
+          }
+        }
+      }
+    },
+    "/api/operations/dashboard": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Resident summary: own upcoming bookings and open repair requests, upcoming events, unresolved maintenance and active projects. Requires society.notices.read.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/facilities": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Active bookable facilities. Requires society.facilities.book.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/facilities/{facility_id}/availability": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Slots for one local (IST) day. Each slot is available or carries a reason: PAST, OUTSIDE_BOOKING_WINDOW, BLOCKED or BOOKED.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "facility_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Slots"
+          },
+          "400": {
+            "description": "Missing or invalid date"
+          },
+          "404": {
+            "description": "Facility not found"
+          }
+        }
+      }
+    },
+    "/api/bookings": {
+      "post": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Book a facility. The facility row is locked; PENDING and CONFIRMED bookings hold their slot. Auto-confirms unless the facility requires approval.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "facility_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "starts_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "ends_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "facility_id",
+                  "starts_at",
+                  "ends_at",
+                  "purpose"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created (PENDING or CONFIRMED)"
+          },
+          "400": {
+            "description": "Outside hours, misaligned slot, too long, past or beyond the booking window"
+          },
+          "409": {
+            "description": "SLOT_UNAVAILABLE or FACILITY_UNAVAILABLE (blackout)"
+          }
+        }
+      }
+    },
+    "/api/bookings/me": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Own bookings with full status history.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/bookings/{booking_id}/cancel": {
+      "post": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Cancel own pending or confirmed booking before it starts.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          },
+          "404": {
+            "description": "Not found or not yours"
+          },
+          "409": {
+            "description": "Wrong state or already started"
+          }
+        }
+      }
+    },
+    "/api/bookings/{booking_id}/decision": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Approve or reject a PENDING booking. A reason is required to reject. Requires society.operations.manage.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "APPROVE",
+                      "REJECT"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "decision"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decided"
+          },
+          "409": {
+            "description": "Not pending"
+          }
+        }
+      }
+    },
+    "/api/admin/facilities": {
+      "get": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "All facilities including inactive ones.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Create a facility. Minutes are local (IST) minutes after midnight.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "capacity": {
+                    "type": "integer"
+                  },
+                  "open_minute": {
+                    "type": "integer"
+                  },
+                  "close_minute": {
+                    "type": "integer"
+                  },
+                  "slot_minutes": {
+                    "type": "integer"
+                  },
+                  "max_minutes_per_booking": {
+                    "type": "integer"
+                  },
+                  "booking_window_days": {
+                    "type": "integer"
+                  },
+                  "requires_approval": {
+                    "type": "boolean"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  },
+                  "max_upcoming_per_resident": {
+                    "type": "integer",
+                    "nullable": true,
+                    "description": "Upcoming PENDING/CONFIRMED bookings one resident may hold; null = no cap"
+                  }
+                },
+                "required": [
+                  "name",
+                  "open_minute",
+                  "close_minute"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "409": {
+            "description": "Duplicate name"
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facility_id}": {
+      "patch": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Update facility rules or deactivate it.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "facility_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "capacity": {
+                    "type": "integer"
+                  },
+                  "open_minute": {
+                    "type": "integer"
+                  },
+                  "close_minute": {
+                    "type": "integer"
+                  },
+                  "slot_minutes": {
+                    "type": "integer"
+                  },
+                  "max_minutes_per_booking": {
+                    "type": "integer"
+                  },
+                  "booking_window_days": {
+                    "type": "integer"
+                  },
+                  "requires_approval": {
+                    "type": "boolean"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  },
+                  "max_upcoming_per_resident": {
+                    "type": "integer",
+                    "nullable": true,
+                    "description": "Upcoming PENDING/CONFIRMED bookings one resident may hold; null = no cap"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facility_id}/blackouts": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Block a facility. Overlapping PENDING/CONFIRMED bookings are cancelled with the reason recorded in their history.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "facility_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "starts_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "ends_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "starts_at",
+                  "ends_at",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Blackout created; returns cancelled_booking_ids"
+          }
+        }
+      }
+    },
+    "/api/admin/bookings": {
+      "get": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Booking queue with resident display names.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "REJECTED",
+                "CANCELLED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Published, closed and cancelled society events with RSVP counts and the caller's own RSVP. Drafts are hidden.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Create a DRAFT event. locality_publish_requested is an opt-in flag for Module 4 only; it publishes nothing.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "venue": {
+                    "type": "string"
+                  },
+                  "starts_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "ends_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "capacity": {
+                    "type": "integer"
+                  },
+                  "volunteer_slots": {
+                    "type": "integer"
+                  },
+                  "locality_publish_requested": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "title",
+                  "description",
+                  "venue",
+                  "starts_at",
+                  "ends_at",
+                  "capacity"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft created"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "One visible event.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event"
+          },
+          "404": {
+            "description": "Not found or draft"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}/rsvp": {
+      "post": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "RSVP. GOING while under capacity, otherwise WAITLISTED. One response per resident.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Recorded"
+          },
+          "409": {
+            "description": "ALREADY_RESPONDED or EVENT_CLOSED"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Cancel own RSVP. Cancelling a GOING place promotes the oldest WAITLISTED resident.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}/publish": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "DRAFT \u2192 PUBLISHED.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published"
+          },
+          "409": {
+            "description": "Invalid transition"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}/cancel": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "DRAFT or PUBLISHED \u2192 CANCELLED.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          },
+          "409": {
+            "description": "Invalid transition"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}/close": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "PUBLISHED \u2192 CLOSED.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Closed"
+          },
+          "409": {
+            "description": "Invalid transition"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}/attendance": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Mark a GOING resident as attended or not.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "user_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "attended": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "user_id",
+                  "attended"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/events": {
+      "get": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "All events including drafts.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/events/{event_id}/attendees": {
+      "get": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "GOING and WAITLISTED residents. Never exposed to residents or Module 4.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/maintenance": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Planned maintenance notices with their updates. Requires society.notices.read.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Publish planned maintenance (PLANNED).",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "asset": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "scheduled_start": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "scheduled_end": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "asset",
+                  "title",
+                  "description",
+                  "scheduled_start",
+                  "scheduled_end"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/api/maintenance/{item_id}/updates": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Add a progress update; optional status PLANNED \u2192 IN_PROGRESS \u2192 RESOLVED.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PLANNED",
+                      "IN_PROGRESS",
+                      "RESOLVED"
+                    ]
+                  }
+                },
+                "required": [
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "409": {
+            "description": "Invalid transition"
+          }
+        }
+      }
+    },
+    "/api/admin/maintenance": {
+      "get": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Planned maintenance notices.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/maintenance/requests": {
+      "post": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Report an internal fault. Private to the reporter and Society Admins. Requires society.maintenance.create. Public roads/streetlights belong to Module 5.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "issue_type": {
+                    "type": "string",
+                    "enum": [
+                      "LIFT",
+                      "PLUMBING",
+                      "ELECTRICAL",
+                      "COMMON_AREA",
+                      "OTHER"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "location_note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "issue_type",
+                  "title",
+                  "description"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reported"
+          }
+        }
+      }
+    },
+    "/api/maintenance/requests/me": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Own maintenance requests with timelines.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/maintenance/requests/{request_id}": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Own request. Anyone else receives 404.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request"
+          },
+          "404": {
+            "description": "Not found or not yours"
+          }
+        }
+      }
+    },
+    "/api/maintenance/requests/{request_id}/feedback": {
+      "post": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Reporter feedback. CLARIFY adds a note (not after CONFIRMED). CONFIRM or REOPEN only after COMPLETED; REOPEN needs a message.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "CLARIFY",
+                      "CONFIRM",
+                      "REOPEN"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded"
+          },
+          "409": {
+            "description": "Wrong state"
+          }
+        }
+      }
+    },
+    "/api/maintenance/requests/{request_id}/status": {
+      "patch": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Admin transition: REPORTED\u2192ASSIGNED (assignee required), ASSIGNED\u2192IN_PROGRESS, IN_PROGRESS\u2192COMPLETED, REOPENED\u2192ASSIGNED|IN_PROGRESS.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ASSIGNED",
+                      "IN_PROGRESS",
+                      "COMPLETED"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "assignee_label": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status",
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "409": {
+            "description": "Invalid transition"
+          }
+        }
+      }
+    },
+    "/api/admin/maintenance/requests": {
+      "get": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "All maintenance requests with reporter names.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/development": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "Development projects with milestones and average progress.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Create a PLANNED project.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "budget_note": {
+                    "type": "string"
+                  },
+                  "expected_completion": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "title",
+                  "description"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/api/development/{project_id}": {
+      "get": {
+        "tags": [
+          "Society Operations"
+        ],
+        "summary": "One project.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Update status, budget note or target date. COMPLETED requires every milestone to be COMPLETED.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PLANNED",
+                      "IN_PROGRESS",
+                      "COMPLETED"
+                    ]
+                  },
+                  "budget_note": {
+                    "type": "string"
+                  },
+                  "expected_completion": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/development/{project_id}/milestones": {
+      "post": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Add a milestone.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added"
+          }
+        }
+      }
+    },
+    "/api/development/{project_id}/milestones/{milestone_id}": {
+      "patch": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Update milestone status, percent (0\u2013100) or progress note. COMPLETED sets 100%.",
+        "security": [
+          {
+            "SessionCookie": [],
+            "CsrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "milestone_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PLANNED",
+                      "IN_PROGRESS",
+                      "COMPLETED"
+                    ]
+                  },
+                  "percent": {
+                    "type": "integer"
+                  },
+                  "progress_note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/development": {
+      "get": {
+        "tags": [
+          "Society Operations \u2014 Admin"
+        ],
+        "summary": "Development projects.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [

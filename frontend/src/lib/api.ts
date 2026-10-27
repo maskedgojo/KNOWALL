@@ -20,7 +20,7 @@ export async function refreshCsrf():Promise<string> {
   }
   return pendingToken;
 }
-export type RequestOptions = {method?:'GET'|'POST'|'PATCH'; body?:unknown; signal?:AbortSignal; headers?:HeadersInit; csrfRetry?:boolean};
+export type RequestOptions = {method?:'GET'|'POST'|'PATCH'|'DELETE'; body?:unknown; signal?:AbortSignal; headers?:HeadersInit; csrfRetry?:boolean};
 const mutating = (method:string) => ['POST','PUT','PATCH','DELETE'].includes(method);
 export async function api<T>(path:string, options:RequestOptions={}):Promise<T> {
   if (!path.startsWith('/api/')) throw new Error('Only relative /api/* routes are allowed');
@@ -64,6 +64,10 @@ export function privateFile(id:string):Promise<{url:string;type:string}> {
 /** Private exceptional-member evidence; never expose a static/public URL. */
 export function privateMemberEvidence(id:string):Promise<{url:string;type:string}> {
   return fetchPrivateFile(`/api/member-evidence/${encodeURIComponent(id)}/file`);
+}
+/** Module 3 ticket/milestone photo; Flask checks who may view it. */
+export function privateOperationPhoto(id:string):Promise<{url:string;type:string}> {
+  return fetchPrivateFile(`/api/operations/photos/${encodeURIComponent(id)}/file`);
 }
 async function fetchPrivateFile(path:string):Promise<{url:string;type:string}> {
   let response:Response;

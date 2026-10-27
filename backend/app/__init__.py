@@ -33,6 +33,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .modules.polls import models as poll_models  # noqa: F401
     from .modules.disputes import models as dispute_models  # noqa: F401
     from .modules.proposals import models as proposal_models  # noqa: F401
+    from .modules.operations import models as operations_models  # noqa: F401
     from .modules.identity.models import User
     from .modules.identity.auth import auth_bp
     from .modules.identity.auth.recovery_routes import recovery_bp
@@ -52,6 +53,12 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .modules.disputes.routes import disputes_bp
     from .modules.proposals.routes import proposals_bp
     from .modules.governance.activity import activity_bp
+    from .modules.operations.facilities import facilities_bp
+    from .modules.operations.events import events_bp
+    from .modules.operations.maintenance import maintenance_bp
+    from .modules.operations.development import development_bp
+    from .modules.operations.dashboard import dashboard_bp
+    from .modules.operations.photos import photos_bp
     from .api_docs import api_docs_bp
 
     @login_manager.user_loader
@@ -96,6 +103,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(disputes_bp)
     app.register_blueprint(proposals_bp)
     app.register_blueprint(activity_bp)
+    for blueprint in (facilities_bp, events_bp, maintenance_bp, development_bp, dashboard_bp, photos_bp):
+        app.register_blueprint(blueprint)
     register_cli(app)
     app.register_blueprint(api_docs_bp)
 

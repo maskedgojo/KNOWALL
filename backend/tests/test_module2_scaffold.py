@@ -59,6 +59,7 @@ def test_scaffold_adds_no_permissions_or_feature_routes(app):
     society_codes = {code for code in KNOWN_PERMISSIONS if code.startswith("society.")}
     assert society_codes <= NOTICE_PERMISSIONS | {
         "society.maintenance.create", "society.facilities.book",
+        "society.operations.manage",  # Module 3
     }
     paths = {rule.rule for rule in app.url_map.iter_rules()}
     for prefix in UNIMPLEMENTED_API_PREFIXES:
