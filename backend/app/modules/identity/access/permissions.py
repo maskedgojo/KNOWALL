@@ -47,6 +47,8 @@ ADMIN_PERMISSIONS = frozenset({
 # Official notice publishing. SOCIETY_ADMIN only; not part of shared admin or resident grants.
 SOCIETY_ADMIN_PERMISSIONS = frozenset({
     "society.notices.manage",
+    # Module 3: facilities, booking decisions, events, maintenance, projects.
+    "society.operations.manage",
 })
 KNOWN_PERMISSIONS = (ACCOUNT_PERMISSIONS | VERIFIED_ACCOUNT_PERMISSIONS |
                      RESIDENT_PERMISSIONS | ADMIN_PERMISSIONS | SOCIETY_ADMIN_PERMISSIONS)

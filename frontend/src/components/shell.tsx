@@ -20,8 +20,11 @@ export function Protected({children,admin=false}:{children:ReactNode;admin?:bool
 }
 function AppShell({children,admin}:{children:ReactNode;admin:boolean}){
   const {user,access,logout}=useAuth();const pathname=usePathname();const [open,setOpen]=useState(false);
-  const residentNav=[...RESIDENT,...(access?.permissions.includes('society.notices.read')?[['/notices','Official notices','clipboard'],['/discussions','Discussions','users'],['/suggestions','Suggestions','file'],['/polls','Informal polls','check'],['/proposals','Proposals','file'],['/disputes','My disputes','lock'],['/governance','Governance history','shield']]:[])];
-  const adminNav=[...ADMIN,...(access?.permissions.includes('society.notices.manage')?[['/admin/notices','Official notices','clipboard'],['/admin/community-activity','Community Activity','users']]:[])];
+  const residentNav=[...RESIDENT,...(access?.permissions.includes('society.notices.read')?[['/notices','Official notices','clipboard'],['/discussions','Discussions','users'],['/suggestions','Suggestions','file'],['/polls','Informal polls','check'],['/proposals','Proposals','file'],['/disputes','My disputes','lock'],['/governance','Governance history','shield']]:[]),
+    ...(access?.permissions.includes('society.facilities.book')?[['/facilities','Amenities','building'],['/bookings','My bookings','calendar']]:[]),
+    ...(access?.permissions.includes('society.notices.read')?[['/events','Society events','calendar'],['/maintenance','Maintenance','settings'],['/development','Development projects','clipboard']]:[])];
+  const adminNav=[...ADMIN,...(access?.permissions.includes('society.notices.manage')?[['/admin/notices','Official notices','clipboard'],['/admin/community-activity','Community Activity','users']]:[]),
+    ...(access?.permissions.includes('society.operations.manage')?[['/admin/facilities','Amenities & bookings','building'],['/admin/events','Society events','calendar'],['/admin/maintenance','Maintenance','settings'],['/admin/development','Development projects','clipboard']]:[])];
   const nav=admin?adminNav:residentNav;
   return <div className="app-layout">
     {open&&<button className="mobile-overlay" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}
