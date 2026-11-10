@@ -7,6 +7,7 @@ import {CONCERN_TYPES, EVIDENCE_EDITABLE, REPORTER_EDITABLE, REPORTER_WITHDRAWAB
 import {pretty, shortDate} from '@/lib/format';
 import {errorText, useLoad} from '@/lib/use-load';
 import {CivicMap, EvidencePhoto, PriorityCard} from './parts';
+import CaseTracker from '@/features/authority/case-tracker';
 
 function eventText(event: TimelineEvent) {
   if (event.type === 'ROUTED') return 'Handed off for routing to the authority workspace (demonstration)';
@@ -126,10 +127,11 @@ export default function CivicIssueDetail({id}: {id: string}) {
             {event.reason && <p className="mt-1 small">{event.reason}</p>}
           </li>)}</ol>
           {issue.handoff && <p className="mt-3 small">Handoff: <Badge value={issue.handoff.routing_status}/>{issue.handoff.authority_case_id && <> case <strong>{issue.handoff.authority_case_id}</strong></>}</p>}
-          {issue.authoritative_status && <Alert tone="info">Authority status (from the authority workspace): {JSON.stringify(issue.authoritative_status)}</Alert>}
           <p className="mt-2 small muted">After handoff, the authority workspace owns the case status shown here.</p>
         </>}</div>
       </Card>
+
+      {issue.authoritative_status && <CaseTracker issueId={id} onChange={refresh}/>}
 
       <PriorityCard priority={issue.priority}/>
 

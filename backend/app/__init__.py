@@ -35,6 +35,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .modules.proposals import models as proposal_models  # noqa: F401
     from .modules.operations import models as operations_models  # noqa: F401
     from .modules.civic import models as civic_models  # noqa: F401
+    from .modules.authority import models as authority_models  # noqa: F401
     from .modules.identity.models import User
     from .modules.identity.auth import auth_bp
     from .modules.identity.auth.recovery_routes import recovery_bp
@@ -66,6 +67,10 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .modules.civic.evidence import evidence_bp as civic_evidence_bp
     from .modules.civic.moderation import moderation_bp as civic_moderation_bp
     from .modules.civic.handoff import handoff_bp as civic_handoff_bp
+    from .modules.authority.cases import cases_bp as authority_cases_bp
+    from .modules.authority.resident import resident_bp as authority_resident_bp
+    from .modules.authority.admin import admin_bp as authority_admin_bp
+    from .modules.authority.admin import register_cli as register_authority_cli
     from .api_docs import api_docs_bp
 
     @login_manager.user_loader
@@ -115,7 +120,10 @@ def create_app(test_config: dict | None = None) -> Flask:
     for blueprint in (civic_duplicates_bp, civic_issues_bp, civic_support_bp, civic_evidence_bp,
                       civic_moderation_bp, civic_handoff_bp):
         app.register_blueprint(blueprint)
+    for blueprint in (authority_cases_bp, authority_resident_bp, authority_admin_bp):
+        app.register_blueprint(blueprint)
     register_cli(app)
+    register_authority_cli(app)
     app.register_blueprint(api_docs_bp)
 
     @app.after_request

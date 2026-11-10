@@ -5,6 +5,7 @@ import {usePathname,useRouter} from 'next/navigation';
 import {adminRole,useAuth} from './auth-provider';
 import {Icon} from './icons';
 import {Loading} from './ui';
+import {authorityApi} from '@/lib/authority-api';
 const RESIDENT=[['/dashboard','Overview','home'],['/onboarding','Applications','clipboard'],['/household','Household & family','users'],['/invitations','Invitations','mail'],['/evidence-requests','Evidence requests','file'],['/profile','My profile','settings']];
 const ADMIN=[['/admin','Overview','home'],['/admin/applications','Application reviews','file'],['/admin/memberships','Memberships','users'],['/admin/households','Household directory','building'],['/admin/evidence-requests','Evidence reviews','shield'],['/admin/invite','Invite residents','mail'],['/admin/audit','Audit trail','shield']];
 export function Protected({children,admin=false}:{children:ReactNode;admin?:boolean}){
@@ -20,13 +21,17 @@ export function Protected({children,admin=false}:{children:ReactNode;admin?:bool
 }
 function AppShell({children,admin}:{children:ReactNode;admin:boolean}){
   const {user,access,logout}=useAuth();const pathname=usePathname();const [open,setOpen]=useState(false);
+  // Module 6: show the authority workspace link only to simulated department officials. Flask still decides access.
+  const [officer,setOfficer]=useState(false);
+  useEffect(()=>{let alive=true;authorityApi.me().then(me=>{if(alive)setOfficer(!!me.officer)}).catch(()=>{});return()=>{alive=false};},[user?.id]);
   const residentNav=[...RESIDENT,...(access?.permissions.includes('society.notices.read')?[['/notices','Official notices','clipboard'],['/discussions','Discussions','users'],['/suggestions','Suggestions','file'],['/polls','Informal polls','check'],['/proposals','Proposals','file'],['/disputes','My disputes','lock'],['/governance','Governance history','shield']]:[]),
     ...(access?.permissions.includes('society.facilities.book')?[['/facilities','Amenities','building'],['/bookings','My bookings','calendar']]:[]),
     ...(access?.permissions.includes('society.notices.read')?[['/events','Society events','calendar'],['/maintenance','Maintenance','settings'],['/development','Development projects','clipboard']]:[]),
-    ...(access?.permissions.includes('civic.issues.create')?[['/civic','Civic issues','alert']]:[])];
+    ...(access?.permissions.includes('civic.issues.create')?[['/civic','Civic issues','alert']]:[]),
+    ...(officer?[['/authority','Authority workspace (demo)','shield']]:[])];
   const adminNav=[...ADMIN,...(access?.permissions.includes('society.notices.manage')?[['/admin/notices','Official notices','clipboard'],['/admin/community-activity','Community Activity','users']]:[]),
     ...(access?.permissions.includes('society.operations.manage')?[['/admin/facilities','Amenities & bookings','building'],['/admin/events','Society events','calendar'],['/admin/maintenance','Maintenance','settings'],['/admin/development','Development projects','clipboard']]:[]),
-    ...(access?.permissions.includes('identity.admin.manage')?[['/admin/civic','Civic issues','alert']]:[])];
+    ...(access?.permissions.includes('identity.admin.manage')?[['/admin/civic','Civic issues','alert'],['/admin/authority','Authority cases (demo)','shield'],['/admin/analytics','Civic analytics','check']]:[])];
   const nav=admin?adminNav:residentNav;
   return <div className="app-layout">
     {open&&<button className="mobile-overlay" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}
