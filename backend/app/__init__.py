@@ -34,6 +34,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .modules.disputes import models as dispute_models  # noqa: F401
     from .modules.proposals import models as proposal_models  # noqa: F401
     from .modules.operations import models as operations_models  # noqa: F401
+    from .modules.civic import models as civic_models  # noqa: F401
     from .modules.identity.models import User
     from .modules.identity.auth import auth_bp
     from .modules.identity.auth.recovery_routes import recovery_bp
@@ -59,6 +60,12 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .modules.operations.development import development_bp
     from .modules.operations.dashboard import dashboard_bp
     from .modules.operations.photos import photos_bp
+    from .modules.civic.issues import issues_bp as civic_issues_bp
+    from .modules.civic.duplicates import duplicates_bp as civic_duplicates_bp
+    from .modules.civic.support import support_bp as civic_support_bp
+    from .modules.civic.evidence import evidence_bp as civic_evidence_bp
+    from .modules.civic.moderation import moderation_bp as civic_moderation_bp
+    from .modules.civic.handoff import handoff_bp as civic_handoff_bp
     from .api_docs import api_docs_bp
 
     @login_manager.user_loader
@@ -104,6 +111,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(proposals_bp)
     app.register_blueprint(activity_bp)
     for blueprint in (facilities_bp, events_bp, maintenance_bp, development_bp, dashboard_bp, photos_bp):
+        app.register_blueprint(blueprint)
+    for blueprint in (civic_duplicates_bp, civic_issues_bp, civic_support_bp, civic_evidence_bp,
+                      civic_moderation_bp, civic_handoff_bp):
         app.register_blueprint(blueprint)
     register_cli(app)
     app.register_blueprint(api_docs_bp)
